@@ -20,8 +20,9 @@
 
 #include <sys/stat.h>
 
-#include <OpenMS/SYSTEM/NetworkGetRequest.h>
 #include <OpenMS/CONCEPT/VersionInfo.h>
+#include <httplib.h>
+#include <regex>
 
 using namespace std;
   
@@ -116,37 +117,56 @@ namespace OpenMS
           OPENMS_LOG_INFO << "setting the environmental variable OPENMS_DISABLE_UPDATE_CHECK to ON." << endl;
         }
       
-        // Simple blocking network request
-        NetworkGetRequest* query = new NetworkGetRequest(nullptr);
-        query->setUrl("http://openms-update.cs.uni-tuebingen.de/check/" + tool_version_string);
-        query->run();
-
-        if (!query->hasError())
+        // Simple blocking HTTP request using cpp-httplib
+        try
         {
-          if (debug_level > 0)
+          httplib::Client client("openms-update.cs.uni-tuebingen.de");
+          client.set_connection_timeout(30, 0); // 30 seconds timeout
+          
+          std::string path = "/check/" + tool_version_string;
+          auto response = client.Get(path.c_str());
+          
+          if (response && response->status == 200)
           {
-            OPENMS_LOG_INFO << "Connecting to REST server successful. " << endl;
-          }
-
-          std::string response = query->getResponse();
-          VersionInfo::VersionDetails server_version = VersionInfo::VersionDetails::create(String(response));
-          if (server_version != VersionInfo::VersionDetails::EMPTY)
-          {
-            if (VersionInfo::getVersionStruct() < server_version)
+            if (debug_level > 0)
             {
-              OPENMS_LOG_INFO << "Version " + version + " of " + tool_name + " is available at www.OpenMS.de" << endl;
+              OPENMS_LOG_INFO << "Connecting to REST server successful. " << endl;
+            }
+
+            std::string response_body = response->body;
+            VersionInfo::VersionDetails server_version = VersionInfo::VersionDetails::create(String(response_body));
+            if (server_version != VersionInfo::VersionDetails::EMPTY)
+            {
+              if (VersionInfo::getVersionStruct() < server_version)
+              {
+                OPENMS_LOG_INFO << "Version " + version + " of " + tool_name + " is available at www.OpenMS.de" << endl;
+              }
+            }
+          }
+          else
+          {
+            if (debug_level > 0)
+            {
+              OPENMS_LOG_INFO << "Connecting to REST server failed. Skipping update check." << endl;
+              if (response)
+              {
+                OPENMS_LOG_INFO << "Error: HTTP " << response->status << endl;
+              }
+              else
+              {
+                OPENMS_LOG_INFO << "Error: Connection failed" << endl;
+              }
             }
           }
         }
-        else
+        catch (const std::exception& e)
         {
           if (debug_level > 0)
           {
             OPENMS_LOG_INFO << "Connecting to REST server failed. Skipping update check." << endl;
-            OPENMS_LOG_INFO << "Error: " << query->getErrorString() << endl;
+            OPENMS_LOG_INFO << "Error: " << e.what() << endl;
           }
         }
-        delete query;
       }
     }
   }

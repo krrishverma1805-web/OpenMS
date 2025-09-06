@@ -59,6 +59,3 @@ namespace OpenMS
   };
 
 } // namespace OpenMS
-  };
-}
-

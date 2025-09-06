@@ -9,6 +9,7 @@
 #include <OpenMS/SYSTEM/NetworkGetRequest.h>
 
 #include <OpenMS/CONCEPT/LogStream.h>
+#include <cpr/cpr.h>
 
 using namespace std;
 
@@ -32,12 +33,35 @@ namespace OpenMS
 
   void NetworkGetRequest::run()
   {
-    // Stub implementation - networking functionality disabled
-    // In a full implementation, this would use a HTTP client library like libcurl
-    OPENMS_LOG_WARN << "NetworkGetRequest: HTTP functionality disabled in Qt-free build. URL was: " << url_ << std::endl;
-    has_error_ = true;
-    error_string_ = "HTTP functionality disabled in Qt-free build";
-    response_ = "";
+    try
+    {
+      // Use CPR library for HTTP GET request
+      cpr::Response r = cpr::Get(cpr::Url{url_}, 
+                                 cpr::Timeout{30000}); // 30 seconds timeout
+      
+      // Check if request was successful
+      if (r.status_code == 200)
+      {
+        response_ = r.text;
+        has_error_ = false;
+        error_string_.clear();
+        OPENMS_LOG_DEBUG << "NetworkGetRequest: Successfully retrieved URL: " << url_ << std::endl;
+      }
+      else
+      {
+        has_error_ = true;
+        error_string_ = "HTTP request failed with status code: " + std::to_string(r.status_code);
+        response_.clear();
+        OPENMS_LOG_WARN << "NetworkGetRequest: " << error_string_ << " for URL: " << url_ << std::endl;
+      }
+    }
+    catch (const std::exception& e)
+    {
+      has_error_ = true;
+      error_string_ = "HTTP request failed with exception: " + std::string(e.what());
+      response_.clear();
+      OPENMS_LOG_WARN << "NetworkGetRequest: " << error_string_ << " for URL: " << url_ << std::endl;
+    }
   }
 
   void NetworkGetRequest::timeOut()

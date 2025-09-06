@@ -183,8 +183,8 @@ namespace OpenMS
   // https://stackoverflow.com/questions/2536524/copy-directory-using-qt
   bool File::copyDirRecursively(const String& from_dir, const String& to_dir, File::CopyOptions option)
   {
-    QDir source_dir(from_dir);
-    QDir target_dir(to_dir);
+    QDir source_dir(from_dir.toQString());
+    QDir target_dir(to_dir.toQString());
 
     QString canonical_source_dir = source_dir.canonicalPath();
     QString canonical_target_dir = target_dir.canonicalPath();

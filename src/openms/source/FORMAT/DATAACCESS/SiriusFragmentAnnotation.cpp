@@ -10,6 +10,7 @@
 #include <OpenMS/CONCEPT/Constants.h>
 #include <OpenMS/CONCEPT/LogStream.h>
 #include <fstream>
+#include <filesystem>
 #include <QtCore/QDir>
 #include <QtCore/QString>
 
@@ -301,7 +302,7 @@ namespace OpenMS
         msspectrum_to_fill.setName(concat_m_ids + suffix);
         String filename = rank_filename.at(i); // rank 1
         double score = rank_score.at(i); // rank 1
-        QFileInfo sirius_result_file(dir,filename.toQString());
+        std::filesystem::path sirius_result_file = std::filesystem::path(static_cast<std::string>(dir)) / static_cast<std::string>(filename);
 
         if (use_exact_mass)
         {
@@ -325,7 +326,7 @@ namespace OpenMS
         }
 
         // read file and save in MSSpectrum
-        ifstream fragment_annotation_file(sirius_result_file.absoluteFilePath().toStdString());
+        ifstream fragment_annotation_file(sirius_result_file.string());
         if (fragment_annotation_file)
         {
           // Target schema

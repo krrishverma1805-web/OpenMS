@@ -17,7 +17,7 @@
 #include <OpenMS/METADATA/SourceFile.h>
 #include <OpenMS/METADATA/SpectrumLookup.h>
 
-#include <QtCore/QFileInfo>
+#include <filesystem>
 #include <QtCore/QRegularExpression>
 
 #include <iomanip>     // setw
@@ -421,8 +421,8 @@ namespace OpenMS
       os << enc.first;
     }
 
-    QFileInfo fileinfo(filename.c_str());
-    QString filtered_filename = fileinfo.completeBaseName();
+    std::filesystem::path file_path(filename);
+    QString filtered_filename = QString::fromStdString(file_path.stem().string());
     filtered_filename.remove(QRegularExpression("[^a-zA-Z0-9]"));
 
 

@@ -22,6 +22,8 @@
 #include <filesystem>
 #include <chrono>
 #include <cstdlib>
+#include <algorithm>
+#include <fstream>
 
 #ifdef OPENMS_WINDOWSPLATFORM
 #include <Windows.h> // for GetCurrentProcessId() && GetModuleFileName()
@@ -36,7 +38,6 @@
 #include <mach-o/dyld.h>
 #endif
 
-#include <QtCore/QFile>
 #include <QtCore/QDebug>
 
 #include <httplib.h>
@@ -157,33 +158,63 @@ namespace OpenMS
 
   bool File::exists(const String& file)
   {
-    QFileInfo fi(file.toQString());
-    return fi.exists();
+    std::error_code ec;
+    return std::filesystem::exists(static_cast<std::string>(file), ec);
   }
 
   bool File::empty(const String& file)
   {
-    QFileInfo fi(file.toQString());
-    return !fi.exists() || fi.size() == 0;
+    std::error_code ec;
+    if (!std::filesystem::exists(static_cast<std::string>(file), ec))
+    {
+      return true;
+    }
+    return std::filesystem::file_size(static_cast<std::string>(file), ec) == 0;
   }
 
   bool File::executable(const String& file)
   {
-    QFileInfo fi(file.toQString());
-    return fi.exists() && fi.isExecutable();
+    std::error_code ec;
+    if (!std::filesystem::exists(static_cast<std::string>(file), ec))
+    {
+      return false;
+    }
+    
+    auto perms = std::filesystem::status(static_cast<std::string>(file), ec).permissions();
+    if (ec) return false;
+    
+    // Check if executable bit is set (on Unix-like systems)
+#ifdef OPENMS_WINDOWSPLATFORM
+    // On Windows, check if it's a .exe, .bat, .cmd file or similar
+    std::filesystem::path p(static_cast<std::string>(file));
+    String ext = p.extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    return (ext == ".exe" || ext == ".bat" || ext == ".cmd" || ext == ".com");
+#else
+    return (perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
+           (perms & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
+           (perms & std::filesystem::perms::others_exec) != std::filesystem::perms::none;
+#endif
   }
 
   UInt64 File::fileSize(const String& file)
   {
     if (!File::exists(file)) return -1;
 
-    return QFile(file.toQString()).size();
+    std::error_code ec;
+    auto size = std::filesystem::file_size(static_cast<std::string>(file), ec);
+    return ec ? 0 : size;
   }
 
   bool File::rename(const String& from, const String& to, bool overwrite_existing, bool verbose)
   {
     // check for equality
-    if (QFileInfo(from.c_str()).canonicalFilePath() == QFileInfo(to.c_str()).canonicalFilePath())
+    std::error_code ec1, ec2;
+    auto from_canonical = std::filesystem::canonical(static_cast<std::string>(from), ec1);
+    auto to_canonical = std::filesystem::canonical(static_cast<std::string>(to), ec2);
+    
+    // If both files exist and are the same, do nothing
+    if (!ec1 && !ec2 && from_canonical == to_canonical)
     { // same file; no need to to anything
       return true;
     }
@@ -344,8 +375,9 @@ namespace OpenMS
 
   String File::absolutePath(const String& file)
   {
-    QFileInfo fi(file.toQString());
-    return fi.absoluteFilePath();
+    std::error_code ec;
+    auto abs_path = std::filesystem::absolute(static_cast<std::string>(file), ec);
+    return ec ? static_cast<std::string>(file) : abs_path.string();
   }
 
   String File::basename(const String& file)
@@ -365,29 +397,46 @@ namespace OpenMS
 
   bool File::readable(const String& file)
   {
-    QFileInfo fi(file.toQString());
-    return fi.exists() && fi.isReadable();
+    std::error_code ec;
+    if (!std::filesystem::exists(static_cast<std::string>(file), ec))
+    {
+      return false;
+    }
+    
+    auto perms = std::filesystem::status(static_cast<std::string>(file), ec).permissions();
+    if (ec) return false;
+    
+    // Check if readable bit is set
+    return (perms & std::filesystem::perms::owner_read) != std::filesystem::perms::none ||
+           (perms & std::filesystem::perms::group_read) != std::filesystem::perms::none ||
+           (perms & std::filesystem::perms::others_read) != std::filesystem::perms::none;
   }
 
   bool File::writable(const String& file)
   {
-    QFileInfo fi(file.toQString());
-
-    bool tmp = false;
-    if (fi.exists())
+    std::error_code ec;
+    if (std::filesystem::exists(static_cast<std::string>(file), ec))
     {
-      tmp = fi.isWritable();
+      // File exists, check permissions
+      auto perms = std::filesystem::status(static_cast<std::string>(file), ec).permissions();
+      if (ec) return false;
+      
+      return (perms & std::filesystem::perms::owner_write) != std::filesystem::perms::none ||
+             (perms & std::filesystem::perms::group_write) != std::filesystem::perms::none ||
+             (perms & std::filesystem::perms::others_write) != std::filesystem::perms::none;
     }
     else
     {
-      QFile f;
-      f.setFileName(file.toQString());
-      f.open(QIODevice::WriteOnly);
-      tmp = f.isWritable();
-      f.remove();
+      // File doesn't exist, try to create it temporarily to test if we can write
+      std::ofstream test_file(static_cast<std::string>(file));
+      bool writable = test_file.good();
+      test_file.close();
+      if (writable)
+      {
+        std::filesystem::remove(static_cast<std::string>(file), ec);
+      }
+      return writable;
     }
-
-    return tmp;
   }
 
   String File::find(const String& filename, StringList directories)
@@ -642,8 +691,8 @@ namespace OpenMS
 
   bool File::isDirectory(const String& path)
   {
-    QFileInfo fi(path.toQString());
-    return fi.isDir();
+    std::error_code ec;
+    return std::filesystem::is_directory(static_cast<std::string>(path), ec);
   }
 
   String File::getTempDirectory()

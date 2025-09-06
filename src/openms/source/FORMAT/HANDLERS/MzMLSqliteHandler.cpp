@@ -15,8 +15,6 @@
 #include <OpenMS/FORMAT/SqliteConnector.h>
 #include <OpenMS/FORMAT/ZlibCompression.h>
 
-#include <QtCore/QFileInfo>
-
 // #include <type_traits> // for template arg detection
 #include <boost/type_traits.hpp>
 

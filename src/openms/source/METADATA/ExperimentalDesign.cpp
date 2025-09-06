@@ -18,7 +18,6 @@
 #include <OpenMS/DATASTRUCTURES/ListUtils.h>
 
 #include <QtCore/QString>
-#include <QtCore/QFileInfo>
 
 #include <algorithm>
 #include <iostream>

@@ -34,20 +34,15 @@
 #endif
 
 
-#include <QtCore/QObject>
-#include <QtNetwork/QNetworkAccessManager>
-#include <QtNetwork/QNetworkRequest>
-#include <QtNetwork/QNetworkReply>
-#include <QtCore/QUrl>
 #include <QtCore/QDateTime>
 #include <QtCore/QFile>
 #include <QtCore/QDebug>
 
-#include <OpenMS/SYSTEM/NetworkGetRequest.h>
 #include <QtCore/QDir>
-#include <QtCore/QCoreApplication>
-#include <QtCore/QDateTime>
-#include <QtCore/QTimer>
+
+#include <httplib.h>
+#include <regex>
+#include <fstream>
 
 
 using namespace std;
@@ -895,22 +890,23 @@ namespace OpenMS
   File::TemporaryFiles_ File::temporary_files_;
 
   // construct a filename. Add number if already exists.
-  QString saveFileName_(const QUrl &url)
+  std::string saveFileName_(const std::string& url)
   {
-    QString path = url.path();
-    QString basename = QFileInfo(path).fileName();
-
-    if (basename.isEmpty())
+    // Extract filename from URL path
+    size_t slash_pos = url.find_last_of('/');
+    std::string basename = (slash_pos != std::string::npos) ? url.substr(slash_pos + 1) : "download";
+    
+    if (basename.empty())
         basename = "download";
 
-    if (QFile::exists(basename)) {
+    if (exists(basename)) {
         // already exists, don't overwrite
         int i = 0;
-        basename += '.';
-        while (QFile::exists(basename + QString::number(i)))
+        std::string base_with_dot = basename + ".";
+        while (exists(base_with_dot + std::to_string(i)))
             ++i;
 
-        basename += QString::number(i);
+        basename = base_with_dot + std::to_string(i);
     }
 
     return basename;
@@ -919,37 +915,67 @@ namespace OpenMS
 // static
 void File::download(const std::string& url, const std::string& download_folder)
 {
-  // We need to use a QCoreApplication to fire up the  QEventLoop to process the signals and slots.
-  char const * argv2[] = { "dummyname", nullptr };
-  int argc = 1;
-  QCoreApplication event_loop(argc, const_cast<char**>(argv2));
-  NetworkGetRequest* query = new NetworkGetRequest(&event_loop);
-  auto qURL = QUrl(QString::fromUtf8(url.c_str()));
-  query->setUrl(qURL);
-  QObject::connect(query, SIGNAL(done()), &event_loop, SLOT(quit()));
-  QTimer::singleShot(1000, query, SLOT(run()));          
-  QTimer::singleShot(600000, query, SLOT(timeOut())); // 10 minutes timeout
-  event_loop.exec();
-
-  if (!query->hasError())
+  try
   {
-    QString folder = download_folder.empty() ? QString("./") : QString(download_folder.c_str());
-    QString filename = QString(folder) + "/" + saveFileName_(qURL); 
-    QFile file(filename);
-    file.open(QIODevice::ReadWrite);
-    file.write(query->getResponseBinary().data(), query->getResponseBinary().size());
+    // Parse URL to extract host and path
+    std::regex url_regex(R"(^https?://([^/]+)(/.*)?$)");
+    std::smatch matches;
+    
+    if (!std::regex_match(url, matches, url_regex))
+    {
+      throw Exception::FileNotFound(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, 
+                                   "Invalid URL format: " + url);
+    }
+    
+    std::string host = matches[1].str();
+    std::string path = matches.size() > 2 ? matches[2].str() : "/";
+    
+    // Create HTTP client
+    bool is_https = url.substr(0, 8) == "https://";
+    httplib::Client client(host);
+    client.set_connection_timeout(30, 0); // 30 seconds timeout
+    
+    // Make GET request
+    auto response = client.Get(path.c_str());
+    
+    if (!response)
+    {
+      throw Exception::FileNotFound(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION,
+                                   "Failed to connect to server: " + url);
+    }
+    
+    if (response->status != 200)
+    {
+      throw Exception::FileNotFound(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION,
+                                   "HTTP error " + std::to_string(response->status) + " for URL: " + url);
+    }
+    
+    // Determine output folder and filename
+    std::string folder = download_folder.empty() ? "./" : download_folder;
+    if (!folder.empty() && folder.back() != '/')
+      folder += "/";
+    
+    std::string filename = folder + saveFileName_(url);
+    
+    // Write response to file
+    std::ofstream file(filename, std::ios::binary);
+    if (!file.is_open())
+    {
+      throw Exception::FileNotFound(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION,
+                                   "Cannot write to file: " + filename);
+    }
+    
+    file.write(response->body.data(), response->body.size());
     file.close();
+    
     OPENMS_LOG_INFO << "Download of '" << url << "' successful." << endl;
-    OPENMS_LOG_INFO << "Stored as '" << filename.toStdString() << "'." << endl;
+    OPENMS_LOG_INFO << "Stored as '" << filename << "'." << endl;
   }
-  else
+  catch (const std::exception& e)
   {
-    String error = "Download of '" + url + "' failed!. Error: " + String(query->getErrorString()) + '\n';
+    String error = "Download of '" + url + "' failed! Error: " + String(e.what());
     throw Exception::FileNotFound(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, error);
   }
-
-  delete query;
-  event_loop.quit();
 }
 
 

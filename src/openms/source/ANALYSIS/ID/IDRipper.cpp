@@ -74,7 +74,7 @@ namespace OpenMS
               : pep_id.getMetaValue("file_origin").toString();
 
           // Extract the basename, used for output files when --numeric_filenames is not set
-          std::filesystem::path p(origin_fullname);
+          std::filesystem::path p(static_cast<std::string>(origin_fullname));
           this->out_basename = p.stem().string();
 
           // Drop the identification run identifier if we're not splitting by identification runs

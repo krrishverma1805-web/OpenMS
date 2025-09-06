@@ -263,7 +263,7 @@ namespace OpenMS
   {
     try 
     {
-      std::filesystem::path dir_path(dir_name);
+      std::filesystem::path dir_path(static_cast<std::string>(dir_name));
       if (std::filesystem::exists(dir_path) && std::filesystem::is_directory(dir_path))
       {
         return std::filesystem::remove_all(dir_path) > 0;

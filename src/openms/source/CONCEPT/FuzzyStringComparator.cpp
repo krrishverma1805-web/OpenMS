@@ -25,7 +25,7 @@ namespace OpenMS
   /// Helper function to convert path to native separators (replacement for QDir::toNativeSeparators)
   static String toNativeSeparators(const String& path)
   {
-    std::filesystem::path p(path);
+    std::filesystem::path p(static_cast<std::string>(path));
     return p.make_preferred().string();
   }
 

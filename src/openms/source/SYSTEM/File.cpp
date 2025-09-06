@@ -187,7 +187,7 @@ namespace OpenMS
     // check canonical path
     if (canonical_source_dir == canonical_target_dir)
     {
-      OPENMS_LOG_ERROR << "Error: Could not copy  " << from_dir.toStdString() << " to " << to_dir.toStdString() << ". Same path given." << std::endl;
+      OPENMS_LOG_ERROR << "Error: Could not copy  " << from_dir << " to " << to_dir << ". Same path given." << std::endl;
       return false;
     }
 
@@ -221,7 +221,7 @@ namespace OpenMS
               case CopyOptions::CANCEL:
                 return false;
               case CopyOptions::SKIP:
-                OPENMS_LOG_WARN << "The file " << entry.fileName().toStdString() << " was skipped." << std::endl;
+                OPENMS_LOG_WARN << "The file " << entry.fileName().toUtf8().constData() << " was skipped." << std::endl;
                 continue;
               case CopyOptions::OVERWRITE:
                 target_dir.remove(entry.fileName());

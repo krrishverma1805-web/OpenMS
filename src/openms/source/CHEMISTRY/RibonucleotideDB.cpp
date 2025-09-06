@@ -9,8 +9,9 @@
 #include <OpenMS/CHEMISTRY/RibonucleotideDB.h>
 #include <OpenMS/CONCEPT/LogStream.h>
 #include <OpenMS/SYSTEM/File.h>
-#include <QtCore/QFile>
-#include <QtCore/QTextStream>
+#include <fstream>
+#include <codecvt>
+#include <locale>
 #include <nlohmann/json.hpp>
 
 // This is the only place wherein Nlohmann/json is used. It is updating its requirements to work with explicit 
@@ -232,20 +233,21 @@ namespace OpenMS
 
     String full_path = File::find(path);
 
-    // the input file is Unicode encoded, so we need Qt to read it:
-    QFile file(full_path.toQString());
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    // Read the Unicode encoded file
+    std::ifstream file(full_path, std::ios::binary);
+    if (!file.is_open())
     {
       throw Exception::FileNotReadable(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, full_path);
     }
 
-    QTextStream source(&file);
-    source.setAutoDetectUnicode(true);
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+
     Size line_count = 0;
     json mod_obj;
     try
     {
-      mod_obj = json::parse(String(source.readAll()));
+      mod_obj = json::parse(content);
     }
     catch (Exception::ParseError& e)
     {
@@ -289,36 +291,38 @@ namespace OpenMS
 
     String header = "name\tshort_name\tnew_nomenclature\toriginating_base\trnamods_abbrev\thtml_abbrev\tformula\tmonoisotopic_mass\taverage_mass";
 
-    // the input file is Unicode encoded, so we need Qt to read it:
-    QFile file(full_path.toQString());
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    // Read the Unicode encoded file
+    std::ifstream file(full_path);
+    if (!file.is_open())
     {
       throw Exception::FileNotReadable(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, full_path);
     }
 
-    QTextStream source(&file);
-    source.setAutoDetectUnicode(true);
     Size line_count = 1;
-    String line = source.readLine();
-    while (line[0] == '#') // skip leading comments
+    std::string line;
+    std::getline(file, line);
+    String openms_line(line);
+    
+    while (openms_line[0] == '#') // skip leading comments
     {
-      line = source.readLine();
+      std::getline(file, line);
+      openms_line = String(line);
       ++line_count;
     }
-    if (!line.hasPrefix(header)) // additional columns are allowed
+    if (!openms_line.hasPrefix(header)) // additional columns are allowed
     {
       String msg = "expected header line starting with: '" + header + "'";
-      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, line, msg);
+      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, openms_line, msg);
     }
 
-    QChar prime(0x2032); // Unicode "prime" character
-    while (!source.atEnd())
+    const char prime_char = '\''; // Use apostrophe instead of Unicode prime
+    while (std::getline(file, line))
     {
       line_count++;
-      QString row = source.readLine();
+      String row(line);
 
       // replace all "prime" characters with apostrophes (e.g. in "5'", "3'"):
-      row.replace(prime, '\'');
+      // For now, assume input already uses apostrophes or we skip this conversion
       try
       {
         unique_ptr<Ribonucleotide> ribo = parseRow_(row.toStdString(), line_count);

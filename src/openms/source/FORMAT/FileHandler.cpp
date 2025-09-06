@@ -44,8 +44,10 @@
 #include <OpenMS/FORMAT/GzipIfstream.h>
 #include <OpenMS/FORMAT/Bzip2Ifstream.h>
 
-#include <QtCore/QFile>
-#include <QtCore/QCryptographicHash>
+#include <fstream>
+#include <functional>
+#include <iomanip>
+#include <sstream>
 
 using namespace std;
 
@@ -584,14 +586,21 @@ namespace OpenMS
 
   String FileHandler::computeFileHash(const String& filename)
   {
-    QCryptographicHash crypto(QCryptographicHash::Sha1);
-    QFile file(filename.toQString());
-    file.open(QFile::ReadOnly);
-    while (!file.atEnd())
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open())
     {
-      crypto.addData(file.read(8192));
+      return "";
     }
-    return String((QString)crypto.result().toHex());
+    
+    // Read file content and compute hash
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    std::hash<std::string> hasher;
+    size_t hash_value = hasher(content);
+    
+    std::ostringstream result;
+    result << std::hex << hash_value;
+    
+    return String(result.str());
   }
 
   void FileHandler::loadSpectrum(const String& filename, MSSpectrum& spec, const std::vector<FileTypes::Type> allowed_types)

@@ -229,11 +229,13 @@ namespace OpenMS
       return false;
     }
     // move the file to the actual destination:
-    if (!QFile::rename(from.toQString(), to.toQString()))
+    std::error_code ec;
+    std::filesystem::rename(std::filesystem::path(from), std::filesystem::path(to), ec);
+    if (ec)
     {
       if (verbose)
       {
-        OPENMS_LOG_ERROR << "Error: Could not move '" << from << "' to '" << to << "'\n";
+        OPENMS_LOG_ERROR << "Error: Could not move '" << from << "' to '" << to << "': " << ec.message() << "\n";
       }
       return false;
     }
@@ -311,7 +313,8 @@ namespace OpenMS
 
   bool File::copy(const String& from, const String& to)
   {
-    return QFile::copy(from.toQString(), to.toQString());
+    std::error_code ec;
+    return std::filesystem::copy_file(std::filesystem::path(from), std::filesystem::path(to), ec);
   }
 
   bool File::remove(const String& file)
@@ -594,7 +597,27 @@ namespace OpenMS
     pid = (String)getpid();
 #endif
     static std::atomic_int number = 0;
-    return now.getDate().remove('-') + "_" + now.getTime().remove(':') + "_" + (include_hostname ? String(QHostInfo::localHostName()) + "_" : "")  + pid + "_" + (++number);
+    
+    String hostname = "";
+    if (include_hostname)
+    {
+#ifdef OPENMS_WINDOWSPLATFORM
+      DWORD size = 256;
+      char buffer[256];
+      if (GetComputerNameA(buffer, &size))
+      {
+        hostname = String(buffer) + "_";
+      }
+#else
+      char buffer[256];
+      if (gethostname(buffer, sizeof(buffer)) == 0)
+      {
+        hostname = String(buffer) + "_";
+      }
+#endif
+    }
+    
+    return now.getDate().remove('-') + "_" + now.getTime().remove(':') + "_" + hostname + pid + "_" + (++number);
   }
 
   String File::getOpenMSDataPath()

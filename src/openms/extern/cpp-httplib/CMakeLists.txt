@@ -42,9 +42,11 @@ FetchContent_Declare(httplib
 
 FetchContent_MakeAvailable(httplib)
 
-# Create interface library for cpp-httplib
-add_library(httplib::httplib INTERFACE IMPORTED GLOBAL)
-target_include_directories(httplib::httplib INTERFACE ${httplib_SOURCE_DIR})
+# cpp-httplib is header-only, create an interface library if target doesn't exist
+if(NOT TARGET httplib::httplib)
+    add_library(httplib::httplib INTERFACE)
+    target_include_directories(httplib::httplib INTERFACE ${httplib_SOURCE_DIR})
+endif()
 
 # Add license to third party licenses file
 if(EXISTS "${httplib_SOURCE_DIR}/LICENSE")

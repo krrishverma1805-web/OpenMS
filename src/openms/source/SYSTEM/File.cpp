@@ -20,9 +20,12 @@
 
 #include <atomic>
 #include <filesystem>
+#include <chrono>
+#include <cstdlib>
 
 #ifdef OPENMS_WINDOWSPLATFORM
 #include <Windows.h> // for GetCurrentProcessId() && GetModuleFileName()
+#include <Shlobj.h> // for SHGetFolderPath
 #endif
 
 #ifdef OPENMS_HAS_UNISTD_H
@@ -33,12 +36,8 @@
 #include <mach-o/dyld.h>
 #endif
 
-
-#include <QtCore/QDateTime>
 #include <QtCore/QFile>
 #include <QtCore/QDebug>
-
-#include <QtCore/QDir>
 
 #include <httplib.h>
 #include <regex>
@@ -49,14 +48,49 @@ using namespace std;
 
 namespace OpenMS
 {
+  namespace
+  {
+    // Helper function to get home directory cross-platform
+    String getHomePath()
+    {
+#ifdef OPENMS_WINDOWSPLATFORM
+      // Use SHGetFolderPath for Windows
+      char path[MAX_PATH];
+      if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, path)))
+      {
+        return String(path);
+      }
+      // Fallback to environment variables
+      const char* homeDrive = getenv("HOMEDRIVE");
+      const char* homePath = getenv("HOMEPATH");
+      if (homeDrive && homePath)
+      {
+        return String(homeDrive) + String(homePath);
+      }
+      const char* userProfile = getenv("USERPROFILE");
+      if (userProfile)
+      {
+        return String(userProfile);
+      }
+      return String("C:\\");
+#else
+      // Unix-like systems (Linux, macOS)
+      const char* home = getenv("HOME");
+      if (home)
+      {
+        return String(home);
+      }
+      return String("/tmp");
+#endif
+    }
+  }
 
   File::TempDir::TempDir(bool keep_dir)
     : keep_dir_(keep_dir)
   {
     temp_dir_ = File::getTempDirectory() + "/" + File::getUniqueName() + "/";
     OPENMS_LOG_DEBUG << "Creating temporary directory '" << temp_dir_ << "'" << std::endl;
-    QDir d;
-    d.mkpath(temp_dir_.toQString());
+    std::filesystem::create_directories(static_cast<std::string>(temp_dir_));
   };
 
   File::TempDir::~TempDir()
@@ -178,62 +212,70 @@ namespace OpenMS
   // https://stackoverflow.com/questions/2536524/copy-directory-using-qt
   bool File::copyDirRecursively(const String& from_dir, const String& to_dir, File::CopyOptions option)
   {
-    QDir source_dir(from_dir.toQString());
-    QDir target_dir(to_dir.toQString());
+    std::filesystem::path source_path(static_cast<std::string>(from_dir));
+    std::filesystem::path target_path(static_cast<std::string>(to_dir));
 
-    QString canonical_source_dir = source_dir.canonicalPath();
-    QString canonical_target_dir = target_dir.canonicalPath();
-
-    // check canonical path
-    if (canonical_source_dir == canonical_target_dir)
+    try 
     {
-      OPENMS_LOG_ERROR << "Error: Could not copy  " << from_dir << " to " << to_dir << ". Same path given." << std::endl;
+      // Get canonical paths to check if they're the same
+      std::filesystem::path canonical_source = std::filesystem::canonical(source_path);
+      std::filesystem::path canonical_target = std::filesystem::canonical(target_path.parent_path()) / target_path.filename();
+
+      // check canonical path
+      if (canonical_source == canonical_target)
+      {
+        OPENMS_LOG_ERROR << "Error: Could not copy  " << from_dir << " to " << to_dir << ". Same path given." << std::endl;
+        return false;
+      }
+
+      // make directory if not present
+      if (!std::filesystem::exists(target_path))
+      {
+        std::filesystem::create_directories(target_path);
+      }
+
+      // copy folder recursively
+      for (const auto& entry : std::filesystem::directory_iterator(source_path))
+      {
+        const std::filesystem::path& entry_path = entry.path();
+        std::filesystem::path target_entry = target_path / entry_path.filename();
+
+        if (entry.is_directory())
+        {
+          if (!copyDirRecursively(String(entry_path.string()), String(target_entry.string()), option))
+          {
+            return false;
+          }
+        }
+        else
+        {
+          if (std::filesystem::exists(target_entry))
+          {
+            switch (option)
+              {
+                case CopyOptions::CANCEL:
+                  return false;
+                case CopyOptions::SKIP:
+                  OPENMS_LOG_WARN << "The file " << entry_path.filename().string() << " was skipped." << std::endl;
+                  continue;
+                case CopyOptions::OVERWRITE:
+                  std::filesystem::remove(target_entry);
+              }
+          }
+          std::error_code ec;
+          std::filesystem::copy_file(entry_path, target_entry, ec);
+          if (ec)
+          {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+    catch (const std::filesystem::filesystem_error& /*e*/)
+    {
       return false;
     }
-
-    // make directory if not present
-    if (!target_dir.exists())
-    {
-      target_dir.mkpath(to_dir);
-    }
-
-    // copy folder recursively
-    QFileInfoList file_list = source_dir.entryInfoList();
-    for (const QFileInfo& entry : file_list)
-    {
-      if (entry.fileName() == "." || entry.fileName() == "..")
-      {
-        continue;
-      }
-      if (entry.isDir())
-      {
-        if (!copyDirRecursively(entry.filePath(), target_dir.filePath(entry.fileName()), option))
-        {
-          return false;
-        }
-      }
-      else
-      {
-        if (target_dir.exists(entry.fileName()))
-        {
-          switch (option)
-            {
-              case CopyOptions::CANCEL:
-                return false;
-              case CopyOptions::SKIP:
-                OPENMS_LOG_WARN << "The file " << entry.fileName().toUtf8().constData() << " was skipped." << std::endl;
-                continue;
-              case CopyOptions::OVERWRITE:
-                target_dir.remove(entry.fileName());
-            }
-        }
-        if (!QFile::copy(entry.filePath(), target_dir.filePath(entry.fileName())))
-        {
-          return false;
-        }
-      }
-    }
-    return true;
   }
 
   bool File::copy(const String& from, const String& to)
@@ -273,44 +315,31 @@ namespace OpenMS
 
   bool File::makeDir(const String& dir_name)
   {
-    QDir dir;
-    return dir.mkpath(dir_name.toQString());
+    try
+    {
+      return std::filesystem::create_directories(static_cast<std::string>(dir_name));
+    }
+    catch (const std::filesystem::filesystem_error& /*e*/)
+    {
+      return false;
+    }
   }
 
   bool File::removeDirRecursively(const String& dir_name)
   {
-    bool fail = false;
-    QString path = dir_name.toQString();
-    QDir dir(path);
-    QStringList files = dir.entryList(QDir::Files | QDir::NoDotAndDotDot);
-    foreach(const QString &file_name, files)
+    try
     {
-      if (!dir.remove(file_name))
+      std::filesystem::path dir_path(static_cast<std::string>(dir_name));
+      if (std::filesystem::exists(dir_path) && std::filesystem::is_directory(dir_path))
       {
-        OPENMS_LOG_WARN << "Could not remove file " << String(file_name) << "!" << std::endl;
-        fail = true;
+        return std::filesystem::remove_all(dir_path) > 0;
       }
+      return true; // Directory doesn't exist, consider it removed
     }
-    QStringList contained_dirs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    foreach(const QString &contained_dir, contained_dirs)
+    catch (const std::filesystem::filesystem_error& /*e*/)
     {
-      if (!removeDirRecursively(path + QDir::separator() + contained_dir))
-      {
-        fail = true;
-      }
+      return false;
     }
-
-    QDir parent_dir(path);
-    if (parent_dir.cdUp())
-    {
-      if (!parent_dir.rmdir(path))
-      {
-        std::cerr << "Could not remove directory " << String(dir.dirName()) << "!" << std::endl;
-        fail = true;
-      }
-    }
-
-    return !fail;
   }
 
   String File::absolutePath(const String& file)
@@ -402,7 +431,8 @@ namespace OpenMS
 
       if (exists(loc))
       {
-        return String(QDir::cleanPath(loc.toQString()));
+        std::filesystem::path clean_path = std::filesystem::path(static_cast<std::string>(loc)).lexically_normal();
+        return String(clean_path.string());
       }
     }
 
@@ -412,27 +442,77 @@ namespace OpenMS
 
   bool File::fileList(const String& dir, const String& file_pattern, StringList& output, bool full_path)
   {
-    QDir d(dir.toQString(), file_pattern.toQString(), QDir::Name, QDir::Files);
-    QFileInfoList list = d.entryInfoList();
-
-    //clear and check if empty
     output.clear();
-    if (list.empty())
+    
+    try
+    {
+      std::filesystem::path dir_path(static_cast<std::string>(dir));
+      
+      if (!std::filesystem::exists(dir_path) || !std::filesystem::is_directory(dir_path))
+      {
+        return false;
+      }
+
+      std::vector<std::filesystem::path> matching_files;
+      
+      // Convert Qt-style pattern to regex (basic conversion)
+      std::string pattern_str = static_cast<std::string>(file_pattern);
+      
+      // Replace Qt wildcards with regex equivalents
+      std::string regex_pattern = pattern_str;
+      // Replace * with .*
+      size_t pos = 0;
+      while ((pos = regex_pattern.find('*', pos)) != std::string::npos)
+      {
+        regex_pattern.replace(pos, 1, ".*");
+        pos += 2;
+      }
+      // Replace ? with .
+      pos = 0;
+      while ((pos = regex_pattern.find('?', pos)) != std::string::npos)
+      {
+        regex_pattern.replace(pos, 1, ".");
+        pos += 1;
+      }
+      
+      std::regex pattern_regex(regex_pattern, std::regex_constants::icase);
+      
+      // Iterate through directory entries
+      for (const auto& entry : std::filesystem::directory_iterator(dir_path))
+      {
+        if (entry.is_regular_file())
+        {
+          std::string filename = entry.path().filename().string();
+          if (std::regex_match(filename, pattern_regex))
+          {
+            matching_files.push_back(entry.path());
+          }
+        }
+      }
+      
+      if (matching_files.empty())
+      {
+        return false;
+      }
+      
+      // Sort files by name (similar to QDir::Name)
+      std::sort(matching_files.begin(), matching_files.end(),
+                [](const std::filesystem::path& a, const std::filesystem::path& b) {
+                  return a.filename().string() < b.filename().string();
+                });
+      
+      output.resize(matching_files.size());
+      for (size_t i = 0; i < matching_files.size(); ++i)
+      {
+        output[i] = full_path ? String(matching_files[i].string()) : String(matching_files[i].filename().string());
+      }
+      
+      return true;
+    }
+    catch (const std::exception& /*e*/)
     {
       return false;
     }
-
-    //resize output
-    output.resize(list.size());
-
-    //fill output
-    UInt i = 0;
-    for (QFileInfoList::const_iterator it = list.constBegin(); it != list.constEnd(); ++it)
-    {
-      output[i++] = full_path ? it->filePath() : it->fileName();
-    }
-
-    return true;
   }
 
   String File::findDoc(const String& filename)
@@ -580,7 +660,7 @@ namespace OpenMS
     }
     else
     {
-      dir = String(QDir::tempPath());
+      dir = String(std::filesystem::temp_directory_path().string());
     }
     return dir;
   }
@@ -600,7 +680,7 @@ namespace OpenMS
     }
     else
     {
-      dir = String(QDir::homePath());
+      dir = getHomePath();
     }
     dir.ensureLastChar('/');
     return dir;
@@ -634,7 +714,7 @@ namespace OpenMS
     }
     else
     {
-      home_path = String(QDir::homePath());
+      home_path = getHomePath();
     }
     return home_path;
   }

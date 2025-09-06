@@ -55,7 +55,7 @@ include (${PROJECT_SOURCE_DIR}/includes.cmake)
 
 #------------------------------------------------------------------------------
 # all the dependency libraries are linked into libOpenMS.so
-set(OPENMS_DEP_LIBRARIES Evergreen LibSVM::LibSVM XercesC::XercesC Eigen3::Eigen Qt6::Core Qt6::Network)
+set(OPENMS_DEP_LIBRARIES Evergreen LibSVM::LibSVM XercesC::XercesC Eigen3::Eigen Qt6::Core)
 
 ## setup the arguments to 'target_link_libraries(OpenMS PRIVATE ${OPENMS_DEP_PRIVATE_LIBRARIES})'
 set(OPENMS_DEP_PRIVATE_LIBRARIES

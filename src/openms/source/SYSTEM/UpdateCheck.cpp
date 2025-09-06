@@ -21,11 +21,6 @@
 #include <sys/stat.h>
 
 #include <OpenMS/SYSTEM/NetworkGetRequest.h>
-#include <QtCore/QDir>
-#include <QtCore/QCoreApplication>
-#include <QtCore/QDateTime>
-#include <QtCore/QTimer>
-
 #include <OpenMS/CONCEPT/VersionInfo.h>
 
 using namespace std;
@@ -34,7 +29,7 @@ namespace OpenMS
 {
   void UpdateCheck::run(const String& tool_name, const String& version, int debug_level)
   {
-    String architecture = QSysInfo::WordSize == 32 ? "32" : "64";
+    String architecture = sizeof(void*) == 4 ? "32" : "64";
 
     // if the revision info is meaningful, show it as well
     String revision("UNKNOWN");
@@ -121,16 +116,10 @@ namespace OpenMS
           OPENMS_LOG_INFO << "setting the environmental variable OPENMS_DISABLE_UPDATE_CHECK to ON." << endl;
         }
       
-        // We need to use a QCoreApplication to fire up the  QEventLoop to process the signals and slots.
-        char const * argv2[] = { "dummyname", nullptr };
-        int argc = 1;
-        QCoreApplication event_loop(argc, const_cast<char**>(argv2));
-        NetworkGetRequest* query = new NetworkGetRequest(&event_loop);
-        query->setUrl(QUrl(QString("http://openms-update.cs.uni-tuebingen.de/check/") + tool_version_string.toQString()));
-        QObject::connect(query, SIGNAL(done()), &event_loop, SLOT(quit()));
-        QTimer::singleShot(1000, query, SLOT(run()));          
-        QTimer::singleShot(5000, query, SLOT(timeOut()));
-        event_loop.exec();
+        // Simple blocking network request
+        NetworkGetRequest* query = new NetworkGetRequest(nullptr);
+        query->setUrl("http://openms-update.cs.uni-tuebingen.de/check/" + tool_version_string);
+        query->run();
 
         if (!query->hasError())
         {
@@ -139,8 +128,8 @@ namespace OpenMS
             OPENMS_LOG_INFO << "Connecting to REST server successful. " << endl;
           }
 
-          QString response = query->getResponse();
-          VersionInfo::VersionDetails server_version = VersionInfo::VersionDetails::create(response);
+          std::string response = query->getResponse();
+          VersionInfo::VersionDetails server_version = VersionInfo::VersionDetails::create(String(response));
           if (server_version != VersionInfo::VersionDetails::EMPTY)
           {
             if (VersionInfo::getVersionStruct() < server_version)
@@ -154,11 +143,10 @@ namespace OpenMS
           if (debug_level > 0)
           {
             OPENMS_LOG_INFO << "Connecting to REST server failed. Skipping update check." << endl;
-            OPENMS_LOG_INFO << "Error: " << String(query->getErrorString()) << endl;
+            OPENMS_LOG_INFO << "Error: " << query->getErrorString() << endl;
           }
         }
         delete query;
-        event_loop.quit();
       }
     }
   }

@@ -10,85 +10,60 @@
 
 #include <OpenMS/CONCEPT/LogStream.h>
 
-#include <QtNetwork/QNetworkRequest>
-#include <QtGui/QTextDocument>
-
 using namespace std;
 
 namespace OpenMS
 {
 
-  NetworkGetRequest::NetworkGetRequest(QObject* parent) :
-    QObject(parent), reply_(nullptr)
+  NetworkGetRequest::NetworkGetRequest(void* /*parent*/) :
+    url_(),
+    response_(),
+    error_string_(),
+    has_error_(false)
   {
-    manager_ = new QNetworkAccessManager(this);
   }
 
   NetworkGetRequest::~NetworkGetRequest() = default;
 
-  void NetworkGetRequest::setUrl(const QUrl& url)
+  void NetworkGetRequest::setUrl(const std::string& url)
   {
     url_ = url;
   }
 
   void NetworkGetRequest::run()
   {
-    if (reply_ == nullptr)
-    {
-      error_ = QNetworkReply::NoError;
-      error_string_ = "";
-      QNetworkRequest request;
-      request.setUrl(url_);
-      request.setHeader(QNetworkRequest::ContentTypeHeader, "text/plain");
-      connect(manager_, SIGNAL(finished(QNetworkReply*)), this, SLOT(replyFinished(QNetworkReply*)));
-      reply_ = manager_->get(request);
-    }
-  }
-
-  void NetworkGetRequest::replyFinished(QNetworkReply* reply)
-  {
-    if (reply_ != nullptr)
-    {
-      error_ = reply->error();
-      error_string_ = error_ != QNetworkReply::NoError ? reply->errorString() : "";
-      response_bytes_ = reply->readAll(); // in case of error this will just read the error html from the server
-      reply->close();
-      reply->deleteLater();;
-    }
-    emit done();
+    // Stub implementation - networking functionality disabled
+    // In a full implementation, this would use a HTTP client library like libcurl
+    OPENMS_LOG_WARN << "NetworkGetRequest: HTTP functionality disabled in Qt-free build. URL was: " << url_ << std::endl;
+    has_error_ = true;
+    error_string_ = "HTTP functionality disabled in Qt-free build";
+    response_ = "";
   }
 
   void NetworkGetRequest::timeOut()
   {
-    if (reply_ != nullptr)
-    {
-      error_ = QNetworkReply::TimeoutError;
-      error_string_ = "TimeoutError: the connection to the remote server timed out";
-      reply_->abort();
-      reply_->close();
-      reply_->deleteLater();
-    }
-    emit done();
+    has_error_ = true;
+    error_string_ = "Request timed out";
   }
 
-  const QByteArray& NetworkGetRequest::getResponseBinary() const
+  std::string NetworkGetRequest::getResponse() const
   {
-    return response_bytes_;
+    return response_;
   }
 
-  QString NetworkGetRequest::getResponse() const
+  const std::string& NetworkGetRequest::getResponseBinary() const
   {
-    return QString(response_bytes_);
-  }  
+    return response_;
+  }
 
   bool NetworkGetRequest::hasError() const
   {
-    return error_ != QNetworkReply::NoError;
+    return has_error_;
   }
 
-  QString NetworkGetRequest::getErrorString() const
+  std::string NetworkGetRequest::getErrorString() const
   {
     return error_string_;
   }
 
-}
+} // namespace OpenMS

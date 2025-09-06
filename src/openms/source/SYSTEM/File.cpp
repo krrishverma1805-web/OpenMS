@@ -18,11 +18,8 @@
 #include <OpenMS/FORMAT/FileHandler.h>
 #include <OpenMS/FORMAT/ParamXMLFile.h>
 
-#include <QtCore/QFileInfo>
-#include <QtCore/QDir>
-#include <QtNetwork/QHostInfo>
-
 #include <atomic>
+#include <filesystem>
 
 #ifdef OPENMS_WINDOWSPLATFORM
 #include <Windows.h> // for GetCurrentProcessId() && GetModuleFileName()
@@ -184,7 +181,7 @@ namespace OpenMS
   }
 
   // https://stackoverflow.com/questions/2536524/copy-directory-using-qt
-  bool File::copyDirRecursively(const QString& from_dir, const QString& to_dir, File::CopyOptions option)
+  bool File::copyDirRecursively(const String& from_dir, const String& to_dir, File::CopyOptions option)
   {
     QDir source_dir(from_dir);
     QDir target_dir(to_dir);
@@ -262,31 +259,21 @@ namespace OpenMS
     return true;
   }
 
-  bool File::removeDir(const QString& dir_name)
+  bool File::removeDir(const String& dir_name)
   {
-    bool result = true;
-    QDir dir(dir_name);
-
-    if (dir.exists(dir_name))
+    try 
     {
-      Q_FOREACH(QFileInfo info, dir.entryInfoList(QDir::NoDotAndDotDot | QDir::System | QDir::Hidden  | QDir::AllDirs | QDir::Files, QDir::DirsFirst))
-        {
-          if (info.isDir())
-          {
-            result = removeDir(info.absoluteFilePath());
-          }
-          else
-          {
-            result = QFile::remove(info.absoluteFilePath());
-          }
-          if (!result)
-          {
-            return result;
-          }
-        }
-      result = dir.rmdir(dir_name);
+      std::filesystem::path dir_path(dir_name);
+      if (std::filesystem::exists(dir_path) && std::filesystem::is_directory(dir_path))
+      {
+        return std::filesystem::remove_all(dir_path) > 0;
+      }
+      return true; // Directory doesn't exist, consider it removed
     }
-    return result;
+    catch (const std::filesystem::filesystem_error& /*e*/)
+    {
+      return false;
+    }
   }
 
   bool File::makeDir(const String& dir_name)

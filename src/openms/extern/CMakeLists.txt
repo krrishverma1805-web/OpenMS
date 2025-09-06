@@ -75,13 +75,13 @@ else()
     set(JSON_USE_IMPLICIT_CONVERSIONS=0)
 endif()
 
-option(USE_EXTERNAL_CPR "Use an external CPR library" OFF)
-message(STATUS "Option USE_EXTERNAL_CPR: ${USE_EXTERNAL_CPR}")
-if(USE_EXTERNAL_CPR)
-    find_package(cpr REQUIRED GLOBAL)  ## global propagates the target up to the parent project
-    message(STATUS "External 'CPR' at: '${cpr_DIR}'")
+option(USE_EXTERNAL_HTTPLIB "Use an external cpp-httplib library" OFF)
+message(STATUS "Option USE_EXTERNAL_HTTPLIB: ${USE_EXTERNAL_HTTPLIB}")
+if(USE_EXTERNAL_HTTPLIB)
+    find_package(httplib REQUIRED GLOBAL)  ## global propagates the target up to the parent project
+    message(STATUS "External 'cpp-httplib' at: '${httplib_DIR}'")
 else()
-    add_subdirectory(cpr)
+    add_subdirectory(cpp-httplib)
 endif()
 
 option(USE_EXTERNAL_SQLITECPP "Use an external SQLiteCpp library" OFF)

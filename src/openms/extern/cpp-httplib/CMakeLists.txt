@@ -32,22 +32,21 @@
 # $Authors: OpenMS Team $
 # --------------------------------------------------------------------------
 
-# Fetch CPR library for HTTP requests
+# Fetch cpp-httplib library for HTTP requests
 include(FetchContent)
 
-# Disable CPR tests and examples to speed up build
-set(CPR_BUILD_TESTS OFF CACHE BOOL "")
-set(CPR_BUILD_TESTS_SSL OFF CACHE BOOL "")
-set(CPR_ENABLE_SSL OFF CACHE BOOL "")
-
-FetchContent_Declare(cpr 
-    GIT_REPOSITORY https://github.com/libcpr/cpr.git
-    GIT_TAG 1.11.0
+FetchContent_Declare(httplib 
+    GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+    GIT_TAG v0.26.0
 )
 
-FetchContent_MakeAvailable(cpr)
+FetchContent_MakeAvailable(httplib)
+
+# Create interface library for cpp-httplib
+add_library(httplib::httplib INTERFACE IMPORTED GLOBAL)
+target_include_directories(httplib::httplib INTERFACE ${httplib_SOURCE_DIR})
 
 # Add license to third party licenses file
-if(EXISTS "${CPR_SOURCE_DIR}/LICENSE")
-    cat("${CPR_SOURCE_DIR}/LICENSE" ${TPLICENSEFILE})
+if(EXISTS "${httplib_SOURCE_DIR}/LICENSE")
+    cat("${httplib_SOURCE_DIR}/LICENSE" ${TPLICENSEFILE})
 endif()

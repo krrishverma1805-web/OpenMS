@@ -9,7 +9,8 @@
 #include <OpenMS/SYSTEM/NetworkGetRequest.h>
 
 #include <OpenMS/CONCEPT/LogStream.h>
-#include <cpr/cpr.h>
+#include <httplib.h>
+#include <regex>
 
 using namespace std;
 
@@ -35,22 +36,54 @@ namespace OpenMS
   {
     try
     {
-      // Use CPR library for HTTP GET request
-      cpr::Response r = cpr::Get(cpr::Url{url_}, 
-                                 cpr::Timeout{30000}); // 30 seconds timeout
+      // Parse URL to extract host and path
+      std::regex url_regex("^https?://([^/]+)(.*)$");
+      std::smatch matches;
       
-      // Check if request was successful
-      if (r.status_code == 200)
+      if (!std::regex_match(url_, matches, url_regex))
       {
-        response_ = r.text;
-        has_error_ = false;
-        error_string_.clear();
-        OPENMS_LOG_DEBUG << "NetworkGetRequest: Successfully retrieved URL: " << url_ << std::endl;
+        has_error_ = true;
+        error_string_ = "Invalid URL format: " + url_;
+        response_.clear();
+        OPENMS_LOG_WARN << "NetworkGetRequest: " << error_string_ << std::endl;
+        return;
+      }
+      
+      std::string host = matches[1].str();
+      std::string path = matches[2].str();
+      if (path.empty()) path = "/";
+      
+      OPENMS_LOG_DEBUG << "NetworkGetRequest: Connecting to host: " << host << ", path: " << path << std::endl;
+      
+      // Create HTTP client
+      httplib::Client cli(host);
+      cli.set_connection_timeout(30); // 30 seconds timeout
+      cli.set_read_timeout(30);
+      
+      // Make GET request
+      auto res = cli.Get(path);
+      
+      if (res)
+      {
+        if (res->status == 200)
+        {
+          response_ = res->body;
+          has_error_ = false;
+          error_string_.clear();
+          OPENMS_LOG_DEBUG << "NetworkGetRequest: Successfully retrieved URL: " << url_ << std::endl;
+        }
+        else
+        {
+          has_error_ = true;
+          error_string_ = "HTTP request failed with status code: " + std::to_string(res->status);
+          response_.clear();
+          OPENMS_LOG_WARN << "NetworkGetRequest: " << error_string_ << " for URL: " << url_ << std::endl;
+        }
       }
       else
       {
         has_error_ = true;
-        error_string_ = "HTTP request failed with status code: " + std::to_string(r.status_code);
+        error_string_ = "HTTP request failed: connection error";
         response_.clear();
         OPENMS_LOG_WARN << "NetworkGetRequest: " << error_string_ << " for URL: " << url_ << std::endl;
       }

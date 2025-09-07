@@ -12,7 +12,8 @@
 #include <OpenMS/SYSTEM/File.h>
 
 #include <QStringList>
-#include <QtCore/QDir>
+#include <filesystem>
+#include <regex>
 
 namespace OpenMS
 {
@@ -324,31 +325,43 @@ namespace OpenMS
   QStringList ToolHandler::getExternalToolConfigFiles_()
   {
 
-    QStringList paths;
+    std::vector<std::string> paths;
     // *.ttd default path
-    paths << getExternalToolsPath().toQString();
+    paths.push_back(static_cast<std::string>(getExternalToolsPath()));
     // OS-specific path
 #ifdef OPENMS_WINDOWSPLATFORM
-    paths << (getExternalToolsPath() + "/WINDOWS").toQString();
+    paths.push_back(static_cast<std::string>(getExternalToolsPath() + "/WINDOWS"));
 #else
-    paths << (getExternalToolsPath() + "/LINUX").toQString();
+    paths.push_back(static_cast<std::string>(getExternalToolsPath() + "/LINUX"));
 #endif
     // additional environment
     if (getenv("OPENMS_TTD_PATH") != nullptr)
     {
-      paths << String(getenv("OPENMS_TTD_PATH")).toQString();
+      paths.push_back(String(getenv("OPENMS_TTD_PATH")));
     }
 
     QStringList all_files;
-    for (int p = 0; p < paths.size(); ++p)
+    std::regex ttd_pattern(".*\\.ttd$");
+    
+    for (const auto& path : paths)
     {
-      QDir dir(paths[p], "*.ttd");
-      QStringList files = dir.entryList();
-      for (int i = 0; i < files.size(); ++i)
+      try
       {
-        files[i] = dir.absolutePath() + QDir::separator() + files[i];
+        if (std::filesystem::exists(path) && std::filesystem::is_directory(path))
+        {
+          for (const auto& entry : std::filesystem::directory_iterator(path))
+          {
+            if (entry.is_regular_file() && std::regex_match(entry.path().filename().string(), ttd_pattern))
+            {
+              all_files << QString::fromStdString(entry.path().string());
+            }
+          }
+        }
       }
-      all_files << files;
+      catch (const std::filesystem::filesystem_error&)
+      {
+        // Ignore directories that cannot be accessed
+      }
     }
     //StringList list = ListUtils::create<String>(getExternalToolsPath() + "/" + "msconvert.ttd");
     return all_files;
@@ -356,31 +369,43 @@ namespace OpenMS
 
   QStringList ToolHandler::getInternalToolConfigFiles_()
   {
-    QStringList paths;
+    std::vector<std::string> paths;
     // *.ttd default path
-    paths << getInternalToolsPath().toQString();
+    paths.push_back(static_cast<std::string>(getInternalToolsPath()));
     // OS-specific path
 #ifdef OPENMS_WINDOWSPLATFORM
-    paths << (getInternalToolsPath() + "/WINDOWS").toQString();
+    paths.push_back(static_cast<std::string>(getInternalToolsPath() + "/WINDOWS"));
 #else
-    paths << (getInternalToolsPath() + "/LINUX").toQString();
+    paths.push_back(static_cast<std::string>(getInternalToolsPath() + "/LINUX"));
 #endif
     // additional environment
     if (getenv("OPENMS_TTD_INTERNAL_PATH") != nullptr)
     {
-      paths << String(getenv("OPENMS_TTD_INTERNAL_PATH")).toQString();
+      paths.push_back(String(getenv("OPENMS_TTD_INTERNAL_PATH")));
     }
 
     QStringList all_files;
-    for (int p = 0; p < paths.size(); ++p)
+    std::regex ttd_pattern(".*\\.ttd$");
+    
+    for (const auto& path : paths)
     {
-      QDir dir(paths[p], "*.ttd");
-      QStringList files = dir.entryList();
-      for (int i = 0; i < files.size(); ++i)
+      try
       {
-        files[i] = dir.absolutePath() + QDir::separator() + files[i];
+        if (std::filesystem::exists(path) && std::filesystem::is_directory(path))
+        {
+          for (const auto& entry : std::filesystem::directory_iterator(path))
+          {
+            if (entry.is_regular_file() && std::regex_match(entry.path().filename().string(), ttd_pattern))
+            {
+              all_files << QString::fromStdString(entry.path().string());
+            }
+          }
+        }
       }
-      all_files << files;
+      catch (const std::filesystem::filesystem_error&)
+      {
+        // Ignore directories that cannot be accessed
+      }
     }
     return all_files;
   }

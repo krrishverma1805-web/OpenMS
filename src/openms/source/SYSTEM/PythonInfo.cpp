@@ -52,7 +52,7 @@ namespace OpenMS
     }
 
     QProcess qp;
-    qp.start(python_executable.toQString(), QStringList() << "--version", QIODevice::ReadOnly);
+    qp.start(python_executable.toQString(), QStringList{"--version"}, QIODevice::ReadOnly);
     bool success = qp.waitForFinished();
     if (!success)
     {
@@ -80,7 +80,7 @@ namespace OpenMS
   bool PythonInfo::isPackageInstalled(const String& python_executable, const String& package_name)
   {
     QProcess qp;
-    qp.start(python_executable.toQString(), QStringList() << "-c" << (String("import ") + package_name).c_str(), QIODevice::ReadOnly);
+    qp.start(python_executable.toQString(), QStringList{"-c", (String("import ") + package_name).c_str()}, QIODevice::ReadOnly);
     bool success = qp.waitForFinished();
     return (success && qp.exitStatus() == QProcess::ExitStatus::NormalExit && qp.exitCode() == 0);
   }
@@ -89,7 +89,7 @@ namespace OpenMS
   {
     String v;
     QProcess qp;
-    qp.start(python_executable.toQString(), QStringList() << "--version", QIODevice::ReadOnly);
+    qp.start(python_executable.toQString(), QStringList{"--version"}, QIODevice::ReadOnly);
     bool success = qp.waitForFinished();
     if (success && qp.exitStatus() == QProcess::ExitStatus::NormalExit && qp.exitCode() == 0)
     {

@@ -21,7 +21,7 @@ namespace OpenMS
   bool JavaInfo::canRun(const String& java_executable, bool verbose_on_error)
   {
     QProcess qp;
-    qp.start(java_executable.toQString(), QStringList() << "-version", QIODevice::ReadOnly);
+    qp.start(java_executable.toQString(), QStringList{"-version"}, QIODevice::ReadOnly);
     bool success = qp.waitForFinished();
     if (!success && verbose_on_error)
     {

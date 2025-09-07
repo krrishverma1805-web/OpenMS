@@ -2439,10 +2439,10 @@ namespace OpenMS
   void TOPPBase::writeToolDescription_(Writer& writer, std::string write_type, std::string fileExtension)
   {
     //store ini-file content in ini_file_str
-    QString out_dir_str = String(param_cmdline_.getValue(write_type).toString()).toQString();
-    if (out_dir_str == "")
+    std::string out_dir_str = String(param_cmdline_.getValue(write_type).toString());
+    if (out_dir_str.empty())
     {
-      out_dir_str = String(std::filesystem::current_path().string());
+      out_dir_str = std::filesystem::current_path().string();
     }
     StringList type_list = ToolHandler::getTypes(tool_name_);
     if (type_list.empty())
@@ -2451,7 +2451,9 @@ namespace OpenMS
     for (Size i = 0; i < type_list.size(); ++i)
     {
       // check file is writable
-      QString write_file = out_dir_str + QString(1, std::filesystem::path::preferred_separator) + tool_name_.toQString() + type_list[i].toQString() + fileExtension.c_str();
+      std::filesystem::path write_path = out_dir_str;
+      write_path /= static_cast<std::string>(tool_name_) + static_cast<std::string>(type_list[i]) + fileExtension;
+      QString write_file = QString::fromStdString(write_path.string());
       outputFileWritable_(write_file, write_type);
 
       // set type on command line, so that getDefaultParameters_() does not fail (as it calls getSubSectionDefaults() of tool)

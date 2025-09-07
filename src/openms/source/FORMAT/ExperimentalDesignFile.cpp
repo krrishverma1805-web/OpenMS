@@ -14,7 +14,6 @@
 #include <OpenMS/METADATA/ExperimentalDesign.h>
 #include <OpenMS/METADATA/ProteinIdentification.h>
 #include <OpenMS/SYSTEM/File.h>
-#include <QtCore/QString>
 #include <filesystem>
 #include <iostream>
 

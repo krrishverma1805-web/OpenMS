@@ -17,8 +17,6 @@
 #include <OpenMS/FORMAT/TextFile.h>
 #include <OpenMS/DATASTRUCTURES/ListUtils.h>
 
-#include <QtCore/QString>
-
 #include <algorithm>
 #include <iostream>
 

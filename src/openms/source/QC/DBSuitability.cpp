@@ -340,7 +340,7 @@ namespace OpenMS
 
     ExternalProcess ep(lam_out, lam_err);
     OPENMS_LOG_DEBUG << "Running " << adapter_name << "..." << endl << endl;
-    const auto& rt = ep.run(adapter_name.toQString(), QStringList{"-ini", ini_path.toQString()}, tmp_dir.getPath().toQString(), true);
+    const auto& rt = ep.run(adapter_name.toQString(), std::vector<std::string>{"-ini", ini_path.toQString().toStdString()}, tmp_dir.getPath().toQString(), true);
     if (rt != ExternalProcess::RETURNSTATE::SUCCESS)
     { // error occured
       OPENMS_LOG_ERROR << "An error occured while running " << adapter_name << "." << endl;

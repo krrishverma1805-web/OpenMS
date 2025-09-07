@@ -14,6 +14,7 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QProcess>
 #include <QtCore/QStringList>
+#include <algorithm>
 #include <utility>
 
 
@@ -48,14 +49,21 @@ namespace OpenMS
   }
 
 
-  ExternalProcess::RETURNSTATE ExternalProcess::run(const QString& exe, const QStringList& args, const QString& working_dir, const bool verbose, IO_MODE io_mode)
+  ExternalProcess::RETURNSTATE ExternalProcess::run(const QString& exe, const std::vector<std::string>& args, const QString& working_dir, const bool verbose, IO_MODE io_mode)
   {
     String error_msg;
     return run(exe, args, working_dir, verbose, error_msg, io_mode);
   }
 
-  ExternalProcess::RETURNSTATE ExternalProcess::run(const QString& exe, const QStringList& args, const QString& working_dir, const bool verbose, String& error_msg, IO_MODE io_mode)
+  ExternalProcess::RETURNSTATE ExternalProcess::run(const QString& exe, const std::vector<std::string>& args, const QString& working_dir, const bool verbose, String& error_msg, IO_MODE io_mode)
   {
+    // Convert std::vector<std::string> to QStringList for Qt interface
+    QStringList qargs;
+    for (const std::string& arg : args)
+    {
+      qargs << QString::fromStdString(arg);
+    }
+    
     // pass environment variables to child process
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     qp_->setProcessEnvironment(env);
@@ -68,7 +76,7 @@ namespace OpenMS
 
     if (verbose)
     {
-      callbackStdOut_("Running: " + (QStringList() << exe << args).join(' ') + '\n');
+      callbackStdOut_("Running: " + (QStringList() << exe << qargs).join(' ') + '\n');
     }
     // Map IO_MODE enum value to QIODevice value
     QIODevice::OpenModeFlag mode;
@@ -87,7 +95,7 @@ namespace OpenMS
         mode = QIODevice::ReadWrite;
     }
 
-    qp_->start(exe, args, mode);
+    qp_->start(exe, qargs, mode);
     if (!(qp_->waitForStarted()))
     {
       error_msg = "Process '" + exe + "' failed to start. Does it exist? Is it executable?";

@@ -17,7 +17,7 @@
 namespace OpenMS
 {
 
-  bool RWrapper::runScript( const String& script_file, const QStringList& cmd_args, const QString& executable /*= "Rscript"*/, bool find_R /*= false */, bool verbose /*= true */)
+  bool RWrapper::runScript( const String& script_file, const std::vector<std::string>& cmd_args, const QString& executable /*= "Rscript"*/, bool find_R /*= false */, bool verbose /*= true */)
   {
     if (find_R && !findR(executable, verbose))
     {
@@ -40,7 +40,11 @@ namespace OpenMS
     }
     QStringList args;
     args << "--vanilla" << "--quiet" << fullscript.toQString();
-    args.append(cmd_args);
+    // Convert std::vector<std::string> to QStringList
+    for (const std::string& arg : cmd_args)
+    {
+      args << QString::fromStdString(arg);
+    }
 
     QProcess p;
     p.start(executable, args);

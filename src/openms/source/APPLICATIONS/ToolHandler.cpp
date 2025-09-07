@@ -11,7 +11,7 @@
 #include <OpenMS/FORMAT/ToolDescriptionFile.h>
 #include <OpenMS/SYSTEM/File.h>
 
-#include <QStringList>
+
 #include <filesystem>
 #include <regex>
 
@@ -282,7 +282,7 @@ namespace OpenMS
 
   void ToolHandler::loadExternalToolConfig_()
   {
-    QStringList files = getExternalToolConfigFiles_();
+    std::vector<std::string> files = getExternalToolConfigFiles_();
     for (int i = 0; i < files.size(); ++i)
     {
       ToolDescriptionFile tdf;
@@ -307,7 +307,7 @@ namespace OpenMS
 
   void ToolHandler::loadInternalToolConfig_()
   {
-    QStringList files = getInternalToolConfigFiles_();
+    std::vector<std::string> files = getInternalToolConfigFiles_();
     for (int i = 0; i < files.size(); ++i)
     {
       ToolDescriptionFile tdf;
@@ -322,7 +322,7 @@ namespace OpenMS
     }
   }
 
-  QStringList ToolHandler::getExternalToolConfigFiles_()
+  std::vector<std::string> ToolHandler::getExternalToolConfigFiles_()
   {
 
     std::vector<std::string> paths;
@@ -340,7 +340,7 @@ namespace OpenMS
       paths.push_back(String(getenv("OPENMS_TTD_PATH")));
     }
 
-    QStringList all_files;
+    std::vector<std::string> all_files;
     std::regex ttd_pattern(".*\\.ttd$");
     
     for (const auto& path : paths)
@@ -353,7 +353,7 @@ namespace OpenMS
           {
             if (entry.is_regular_file() && std::regex_match(entry.path().filename().string(), ttd_pattern))
             {
-              all_files << QString::fromStdString(entry.path().string());
+              all_files.push_back(entry.path().string());
             }
           }
         }
@@ -367,7 +367,7 @@ namespace OpenMS
     return all_files;
   }
 
-  QStringList ToolHandler::getInternalToolConfigFiles_()
+  std::vector<std::string> ToolHandler::getInternalToolConfigFiles_()
   {
     std::vector<std::string> paths;
     // *.ttd default path
@@ -384,7 +384,7 @@ namespace OpenMS
       paths.push_back(String(getenv("OPENMS_TTD_INTERNAL_PATH")));
     }
 
-    QStringList all_files;
+    std::vector<std::string> all_files;
     std::regex ttd_pattern(".*\\.ttd$");
     
     for (const auto& path : paths)
@@ -397,7 +397,7 @@ namespace OpenMS
           {
             if (entry.is_regular_file() && std::regex_match(entry.path().filename().string(), ttd_pattern))
             {
-              all_files << QString::fromStdString(entry.path().string());
+              all_files.push_back(entry.path().string());
             }
           }
         }

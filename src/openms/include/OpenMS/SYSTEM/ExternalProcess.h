@@ -17,7 +17,7 @@
 
 class QProcess; // forward declare to avoid header include
 class QString;
-#include <QtCore/qcontainerfwd.h> // for QStringList
+#include <vector>
 
 namespace OpenMS
 {
@@ -80,12 +80,12 @@ namespace OpenMS
       @param io_mode Open mode for the process (read access, write access, ...)
       @return Did the external program succeed (SUCCESS) or did something go wrong?
     */
-    RETURNSTATE run(const QString& exe, const QStringList& args, const QString& working_dir, const bool verbose, String& error_msg, IO_MODE io_mode = IO_MODE::READ_WRITE);
+    RETURNSTATE run(const QString& exe, const std::vector<std::string>& args, const QString& working_dir, const bool verbose, String& error_msg, IO_MODE io_mode = IO_MODE::READ_WRITE);
     
     /**
       @brief Same as other overload, just without a returned error message
      */
-    ExternalProcess::RETURNSTATE run(const QString& exe, const QStringList& args, const QString& working_dir, const bool verbose, IO_MODE io_mode = IO_MODE::READ_WRITE);
+    ExternalProcess::RETURNSTATE run(const QString& exe, const std::vector<std::string>& args, const QString& working_dir, const bool verbose, IO_MODE io_mode = IO_MODE::READ_WRITE);
 
   private slots:
     void processStdOut_();

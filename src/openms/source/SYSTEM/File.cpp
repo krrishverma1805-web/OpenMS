@@ -1051,11 +1051,11 @@ namespace OpenMS
     if (basename.empty())
         basename = "download";
 
-    if (exists(basename)) {
+    if (File::exists(basename)) {
         // already exists, don't overwrite
         int i = 0;
         std::string base_with_dot = basename + ".";
-        while (exists(base_with_dot + std::to_string(i)))
+        while (File::exists(base_with_dot + std::to_string(i)))
             ++i;
 
         basename = base_with_dot + std::to_string(i);

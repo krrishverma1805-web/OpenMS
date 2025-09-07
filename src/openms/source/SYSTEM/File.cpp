@@ -42,7 +42,6 @@
 
 #include <httplib.h>
 #include <regex>
-#include <fstream>
 
 
 using namespace std;
@@ -230,7 +229,7 @@ namespace OpenMS
     }
     // move the file to the actual destination:
     std::error_code ec;
-    std::filesystem::rename(std::filesystem::path(from), std::filesystem::path(to), ec);
+    std::filesystem::rename(std::filesystem::path(static_cast<std::string>(from)), std::filesystem::path(static_cast<std::string>(to)), ec);
     if (ec)
     {
       if (verbose)
@@ -314,7 +313,8 @@ namespace OpenMS
   bool File::copy(const String& from, const String& to)
   {
     std::error_code ec;
-    return std::filesystem::copy_file(std::filesystem::path(from), std::filesystem::path(to), ec);
+    bool success = std::filesystem::copy_file(std::filesystem::path(static_cast<std::string>(from)), std::filesystem::path(static_cast<std::string>(to)), ec);
+    return success && !ec;
   }
 
   bool File::remove(const String& file)

@@ -11,19 +11,15 @@
 // OpenMS_GUI config
 #include <OpenMS/DATASTRUCTURES/String.h>
 
-#include <QtCore/QObject>
-
 #include <functional> // for std::function
-
-class QProcess; // forward declare to avoid header include
-class QString;
 #include <vector>
+#include <string>
 
 namespace OpenMS
 {
 
   /**
-    @brief A wrapper around QProcess to conveniently start an external program and forward its outputs
+    @brief A wrapper around boost::process to conveniently start an external program and forward its outputs
 
     Use the custom Ctor to provide callback functions for stdout/stderr output or set them via setCallbacks().
 
@@ -34,9 +30,7 @@ namespace OpenMS
 
   */
   class OPENMS_DLLAPI ExternalProcess
-    : public QObject
   {
-    Q_OBJECT
 
   public:
     /// result of calling an external executable
@@ -80,19 +74,14 @@ namespace OpenMS
       @param io_mode Open mode for the process (read access, write access, ...)
       @return Did the external program succeed (SUCCESS) or did something go wrong?
     */
-    RETURNSTATE run(const QString& exe, const std::vector<std::string>& args, const QString& working_dir, const bool verbose, String& error_msg, IO_MODE io_mode = IO_MODE::READ_WRITE);
+    RETURNSTATE run(const std::string& exe, const std::vector<std::string>& args, const std::string& working_dir, const bool verbose, String& error_msg, IO_MODE io_mode = IO_MODE::READ_WRITE);
     
     /**
       @brief Same as other overload, just without a returned error message
      */
-    ExternalProcess::RETURNSTATE run(const QString& exe, const std::vector<std::string>& args, const QString& working_dir, const bool verbose, IO_MODE io_mode = IO_MODE::READ_WRITE);
-
-  private slots:
-    void processStdOut_();
-    void processStdErr_();
+    ExternalProcess::RETURNSTATE run(const std::string& exe, const std::vector<std::string>& args, const std::string& working_dir, const bool verbose, IO_MODE io_mode = IO_MODE::READ_WRITE);
 
   private:
-    QProcess* qp_; ///< pointer to avoid including the QProcess header here (it's huge)
     std::function<void(const String&)> callbackStdOut_;
     std::function<void(const String&)> callbackStdErr_;
   };

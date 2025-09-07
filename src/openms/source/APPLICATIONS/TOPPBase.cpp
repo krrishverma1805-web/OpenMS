@@ -1735,13 +1735,13 @@ namespace OpenMS
     }
   }
 
-  TOPPBase::ExitCodes TOPPBase::runExternalProcess_(const QString& executable, const std::vector<std::string>& arguments, const QString& workdir) const
+  TOPPBase::ExitCodes TOPPBase::runExternalProcess_(const std::string& executable, const std::vector<std::string>& arguments, const std::string& workdir) const
   {
     String proc_stdout, proc_stderr; // collect all output (might be useful if program crashes, see below)
     return runExternalProcess_(executable, arguments, proc_stdout, proc_stderr, workdir);
   }
 
-  TOPPBase::ExitCodes TOPPBase::runExternalProcess_(const QString& executable, const std::vector<std::string>& arguments, String& proc_stdout, String& proc_stderr, const QString& workdir) const
+  TOPPBase::ExitCodes TOPPBase::runExternalProcess_(const std::string& executable, const std::vector<std::string>& arguments, String& proc_stdout, String& proc_stderr, const std::string& workdir) const
   {
     proc_stdout.clear();
     proc_stderr.clear();
@@ -2453,7 +2453,7 @@ namespace OpenMS
       // check file is writable
       std::filesystem::path write_path = out_dir_str;
       write_path /= static_cast<std::string>(tool_name_) + static_cast<std::string>(type_list[i]) + fileExtension;
-      QString write_file = QString::fromStdString(write_path.string());
+      String write_file = write_path.string();
       outputFileWritable_(write_file, write_type);
 
       // set type on command line, so that getDefaultParameters_() does not fail (as it calls getSubSectionDefaults() of tool)

@@ -283,7 +283,8 @@ namespace OpenMS
       }
     }
   }
-  
+
+  // TODO why not use our csv reader?????
   // Read entries from a TSV file
   void RibonucleotideDB::readFromFile_(const std::string& path)
   {
@@ -301,31 +302,32 @@ namespace OpenMS
     Size line_count = 1;
     std::string line;
     std::getline(file, line);
-    String openms_line(line);
-    
-    while (openms_line[0] == '#') // skip leading comments
+
+    // Todo this does even allow for leading whitespace...
+    while (line[0] == '#') // skip leading comments
     {
       std::getline(file, line);
-      openms_line = String(line);
       ++line_count;
     }
+    String openms_line(line);
     if (!openms_line.hasPrefix(header)) // additional columns are allowed
     {
       String msg = "expected header line starting with: '" + header + "'";
       throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, openms_line, msg);
     }
 
+    // TODO Just use wide char stream instead of pulling in Qt...
+    // Better even.. dont allow such kind of BS in a file
     const char prime_char = '\''; // Use apostrophe instead of Unicode prime
     while (std::getline(file, line))
     {
       line_count++;
-      String row(line);
 
       // replace all "prime" characters with apostrophes (e.g. in "5'", "3'"):
       // For now, assume input already uses apostrophes or we skip this conversion
       try
       {
-        unique_ptr<Ribonucleotide> ribo = parseRow_(row.toStdString(), line_count);
+        unique_ptr<Ribonucleotide> ribo = parseRow_(line, line_count);
         code_map_[ribo->getCode()] = ribonucleotides_.size();
         max_code_length_ = max(max_code_length_, ribo->getCode().size());
         ribonucleotides_.push_back(std::move(ribo));

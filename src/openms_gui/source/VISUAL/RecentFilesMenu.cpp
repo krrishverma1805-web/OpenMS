@@ -116,8 +116,7 @@ namespace OpenMS
     {
       return;
     }
-    String filename = String(action->text().toStdString());
-    emit recentFileClicked(filename);
+    emit recentFileClicked(action->text());
   }
 
   void RecentFilesMenu::sync_()

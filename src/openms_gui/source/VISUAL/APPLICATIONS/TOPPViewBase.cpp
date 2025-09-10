@@ -971,9 +971,9 @@ namespace OpenMS
     recent_files_.add(filename);
   }
 
-  void TOPPViewBase::openFile(const String& filename)
+  void TOPPViewBase::openFile(const QString& filename)
   {
-    addDataFile(filename, true, true);
+    addDataFile(filename.toStdString(), true, true);
   }
 
   void TOPPViewBase::closeByTab(int id)

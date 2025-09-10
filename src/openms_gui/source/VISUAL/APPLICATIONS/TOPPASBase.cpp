@@ -151,7 +151,7 @@ namespace OpenMS
     file->addSeparator();
     // Recent files
     file->addMenu(recent_files_menu_.getMenu()); // updates automatically via RecentFilesMenu class, since this is just a pointer
-    connect(&recent_files_menu_, &RecentFilesMenu::recentFileClicked, [this](const String& filename) { addTOPPASFile(filename, true);});
+    connect(&recent_files_menu_, &RecentFilesMenu::recentFileClicked, [this](const QString& filename) { addTOPPASFile(String(filename.toStdString()), true);});
 
     file->addSeparator();
     file->addAction("&Load TOPPAS resource file", this, SLOT(loadPipelineResourceFile()));

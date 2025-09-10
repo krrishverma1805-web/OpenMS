@@ -11,64 +11,47 @@
 #include <OpenMS/DATASTRUCTURES/String.h>
 #include <OpenMS/CONCEPT/Exception.h>
 
-#include <QtCore/QDateTime> // very expensive to include!
-
-using namespace std;
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+#include <tuple>
+#include <cctype>
 
 namespace OpenMS
 {
-  DateTime::DateTime() :
-    dt_(new QDateTime)
+  // small helpers for parsing fixed width integers
+  static bool parse_int2_(const char* p, int& v)
   {
+    if (!std::isdigit(static_cast<unsigned char>(p[0])) || !std::isdigit(static_cast<unsigned char>(p[1]))) return false;
+    v = (p[0] - '0') * 10 + (p[1] - '0');
+    return true;
   }
 
-  DateTime::DateTime(const DateTime& date)
-    : dt_(new QDateTime(*date.dt_))
+  static bool parse_int4_(const char* p, int& v)
   {
-  }
-
-  DateTime::DateTime(DateTime&& rhs) noexcept
-    : dt_(rhs.dt_.release())
-  {
-  }
-
-
-  DateTime& DateTime::operator=(const DateTime& source)
-  {
-    if (&source == this)
+    for (int i = 0; i < 4; ++i)
     {
-      return *this;
+      if (!std::isdigit(static_cast<unsigned char>(p[i]))) return false;
     }
-
-    if (dt_ == nullptr)
-    { // *this is in a 'moved-from' state; we need to create a dt_ object first
-      dt_ = make_unique<QDateTime>(*source.dt_);
-    }
-    else
-    {
-      *dt_ = *source.dt_;
-    }
-
-    return *this;
+    v = (p[0]-'0')*1000 + (p[1]-'0')*100 + (p[2]-'0')*10 + (p[3]-'0');
+    return true;
   }
 
-  DateTime& DateTime::operator=(DateTime&& source) & noexcept
+  DateTime::DateTime()
   {
-    if (&source == this)
-    {
-      return *this;
-    }
-
-    std::swap(dt_, source.dt_);
-
-    return *this;
+    clear();
   }
 
+  DateTime::DateTime(const DateTime& date) = default;
+  DateTime::DateTime(DateTime&&) noexcept = default;
+  DateTime& DateTime::operator=(const DateTime& source) = default;
+  DateTime& DateTime::operator=(DateTime&&) & noexcept = default;
   DateTime::~DateTime() = default;
 
   bool DateTime::operator==(const DateTime& rhs) const
   {
-    return (*dt_ == *rhs.dt_);
+    return std::tie(year_, month_, day_, hour_, minute_, second_, valid_)
+         == std::tie(rhs.year_, rhs.month_, rhs.day_, rhs.hour_, rhs.minute_, rhs.second_, rhs.valid_);
   }
 
   bool DateTime::operator!=(const DateTime& rhs) const
@@ -78,242 +61,318 @@ namespace OpenMS
 
   bool DateTime::operator<(const DateTime& rhs) const
   {
-    return (*dt_ < *rhs.dt_);
+    return std::tie(year_, month_, day_, hour_, minute_, second_)
+         < std::tie(rhs.year_, rhs.month_, rhs.day_, rhs.hour_, rhs.minute_, rhs.second_);
   }
 
-  bool DateTime::isValid() const
+  bool DateTime::validDate_(int y, int m, int d)
   {
-    return dt_->isValid();
+    if (y <= 0 || m < 1 || m > 12 || d < 1) return false;
+    static const int mdays[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+    const bool isLeap = ((y % 4 == 0) && (y % 100 != 0)) || (y % 400 == 0);
+    const int dim = mdays[m-1] + ((m == 2 && isLeap) ? 1 : 0);
+    return d <= dim;
   }
 
-  String DateTime::toString(const std::string& format) const
+  bool DateTime::validTime_(int hh, int mm, int ss)
   {
-    return dt_->toString(QString::fromStdString(format)).toStdString();
+    return (hh >= 0 && hh < 24) && (mm >= 0 && mm < 60) && (ss >= 0 && ss < 60);
   }
 
-  void DateTime::set(const String& date)
+  void DateTime::parseDate_(const String& s, int& y, int& m, int& d)
   {
-    clear();
-
-    if (date.has('.') && !date.has('T'))
+    // yyyy-MM-dd
+    if (s.has('-'))
     {
-      *dt_ = (QDateTime::fromString(date.c_str(), "dd.MM.yyyy hh:mm:ss"));
+      if (s.size() < 10) throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date string");
+      if (!parse_int4_(s.c_str(), y)) throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid year");
+      if (s[4] != '-') throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date separator");
+      if (!parse_int2_(s.c_str()+5, m)) throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid month");
+      if (s[7] != '-') throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date separator");
+      if (!parse_int2_(s.c_str()+8, d)) throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid day");
     }
-    else if (date.has('/'))
+    // MM/dd/yyyy
+    else if (s.has('/'))
     {
-      *dt_ = (QDateTime::fromString(date.c_str(), "MM/dd/yyyy hh:mm:ss"));
+      int mm=0, dd=0, yy=0;
+      if (std::sscanf(s.c_str(), "%d/%d/%d", &mm, &dd, &yy) != 3)
+        throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date");
+      m = mm; d = dd; y = yy;
     }
-    else if (date.has('-'))
+    // dd.MM.yyyy
+    else if (s.has('.'))
     {
-      if (date.has('T'))
-      {
-        if (date.has('+'))
-        {
-          // remove timezone part, since Qt cannot handle this, check if we also have a millisecond part
-          if (date.has('.'))
-          {
-            *dt_ = (QDateTime::fromString(date.prefix('+').c_str(), "yyyy-MM-ddThh:mm:ss.zzz"));
-          }
-          else
-          {
-            *dt_ = (QDateTime::fromString(date.prefix('+').c_str(), "yyyy-MM-ddThh:mm:ss"));
-          }
-        }
-        else
-        {
-          *dt_ = (QDateTime::fromString(date.c_str(), "yyyy-MM-ddThh:mm:ss"));
-        }
-      }
-      else if (date.has('Z'))
-      {
-        *dt_ = (QDateTime::fromString(date.c_str(), "yyyy-MM-ddZ"));
-      }
-      else if (date.has('+'))
-      {
-        *dt_ = (QDateTime::fromString(date.c_str(), "yyyy-MM-dd+hh:mm"));
-      }
-      else
-      {
-        *dt_ = (QDateTime::fromString(date.c_str(), "yyyy-MM-dd hh:mm:ss"));
-      }
+      int mm=0, dd=0, yy=0;
+      if (std::sscanf(s.c_str(), "%d.%d.%d", &dd, &mm, &yy) != 3)
+        throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date");
+      m = mm; d = dd; y = yy;
+    }
+    else
+    {
+      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Unsupported date format");
     }
 
-    if (!dt_->isValid())
-    {
-      *dt_ = QDateTime::fromString(date.c_str());  // ddd MMM d YYYY format as found in (old?) protXML files
-    }
+    if (!validDate_(y, m, d))
+      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date");
+  }
 
-    if (!dt_->isValid())
-    {
-      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, date, "Invalid date time string");
-    }
+  void DateTime::parseTime_(const String& s, int& hh, int& mm, int& ss)
+  {
+    if (std::sscanf(s.c_str(), "%d:%d:%d", &hh, &mm, &ss) != 3)
+      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid time");
+    if (!validTime_(hh, mm, ss))
+      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid time");
+  }
+
+  void DateTime::setDate(const String& date)
+  {
+    int y=0, m=0, d=0;
+    parseDate_(date, y, m, d);
+    year_ = y; month_ = m; day_ = d;
+    valid_ = true;
+  }
+
+  void DateTime::setTime(const String& time)
+  {
+    int hh=0, mm=0, ss=0;
+    parseTime_(time, hh, mm, ss);
+    hour_ = hh; minute_ = mm; second_ = ss;
+    valid_ = true;
+  }
+
+  void DateTime::setDate(UInt month, UInt day, UInt year)
+  {
+    int y = static_cast<int>(year);
+    int m = static_cast<int>(month);
+    int d = static_cast<int>(day);
+    if (!validDate_(y, m, d))
+      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, String(year) + "-" + String(month) + "-" + String(day), "Could not set date");
+    year_ = y; month_ = m; day_ = d; valid_ = true;
+  }
+
+  void DateTime::setTime(UInt hour, UInt minute, UInt second)
+  {
+    int hh = static_cast<int>(hour);
+    int mm = static_cast<int>(minute);
+    int ss = static_cast<int>(second);
+    if (!validTime_(hh, mm, ss))
+      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, String(hour) + ":" + String(minute) + ":" + String(second), "Could not set time");
+    hour_ = hh; minute_ = mm; second_ = ss; valid_ = true;
   }
 
   void DateTime::set(UInt month, UInt day, UInt year, UInt hour, UInt minute, UInt second)
   {
-    dt_->setDate(QDate(year, month, day));
-    dt_->setTime(QTime(hour, minute, second));
+    setDate(month, day, year);
+    setTime(hour, minute, second);
+  }
 
-    if (!dt_->isValid())
+  void DateTime::get(UInt& month, UInt& day, UInt& year, UInt& hour, UInt& minute, UInt& second) const
+  {
+    month = static_cast<UInt>(valid_ ? month_ : 0);
+    day   = static_cast<UInt>(valid_ ? day_   : 0);
+    year  = static_cast<UInt>(valid_ ? year_  : 0);
+    hour  = static_cast<UInt>(valid_ ? hour_  : 0);
+    minute= static_cast<UInt>(valid_ ? minute_: 0);
+    second= static_cast<UInt>(valid_ ? second_: 0);
+  }
+
+  void DateTime::getDate(UInt& month, UInt& day, UInt& year) const
+  {
+    month = static_cast<UInt>(valid_ ? month_ : 0);
+    day   = static_cast<UInt>(valid_ ? day_   : 0);
+    year  = static_cast<UInt>(valid_ ? year_  : 0);
+  }
+
+  String DateTime::getDate() const
+  {
+    if (!valid_) return "0000-00-00";
+    std::ostringstream oss;
+    oss << std::setfill('0') << std::setw(4) << year_ << '-'
+        << std::setw(2) << month_ << '-'
+        << std::setw(2) << day_;
+    return String(oss.str());
+  }
+
+  void DateTime::getTime(UInt& hour, UInt& minute, UInt& second) const
+  {
+    hour   = static_cast<UInt>(valid_ ? hour_   : 0);
+    minute = static_cast<UInt>(valid_ ? minute_ : 0);
+    second = static_cast<UInt>(valid_ ? second_ : 0);
+  }
+
+  String DateTime::getTime() const
+  {
+    if (!valid_) return "00:00:00";
+    std::ostringstream oss;
+    oss << std::setfill('0') << std::setw(2) << hour_ << ':'
+        << std::setw(2) << minute_ << ':'
+        << std::setw(2) << second_;
+    return String(oss.str());
+  }
+
+  DateTime& DateTime::addSecs(int s)
+  {
+    // Build tm
+    std::tm tm{};
+    tm.tm_year = (year_ > 0 ? year_ - 1900 : 0);
+    tm.tm_mon  = (month_ > 0 ? month_ - 1 : 0);
+    tm.tm_mday = (day_ > 0 ? day_ : 1);
+    tm.tm_hour = hour_;
+    tm.tm_min  = minute_;
+    tm.tm_sec  = second_;
+    std::time_t t = std::mktime(&tm);
+    if (t == static_cast<std::time_t>(-1))
     {
-      String date_time = String(year) + "-" + String(month) + "-" + String(day)
-                         + " " + String(hour) + ":" + String(minute) + ":" + String(second);
-      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, date_time, "Invalid date time");
+      // if invalid current state, start from epoch
+      t = 0;
     }
+    t += s;
+#if defined(_WIN32)
+    std::tm ntm{};
+    localtime_s(&ntm, &t);
+    year_  = ntm.tm_year + 1900;
+    month_ = ntm.tm_mon + 1;
+    day_   = ntm.tm_mday;
+    hour_  = ntm.tm_hour;
+    minute_= ntm.tm_min;
+    second_= ntm.tm_sec;
+#else
+    std::tm* ntm = std::localtime(&t);
+    year_  = ntm->tm_year + 1900;
+    month_ = ntm->tm_mon + 1;
+    day_   = ntm->tm_mday;
+    hour_  = ntm->tm_hour;
+    minute_= ntm->tm_min;
+    second_= ntm->tm_sec;
+#endif
+    valid_ = true;
+    return *this;
   }
 
   DateTime DateTime::now()
   {
     DateTime d;
-    *d.dt_ = QDateTime::currentDateTime();
+    std::time_t t = std::time(nullptr);
+#if defined(_WIN32)
+    std::tm lt{};
+    localtime_s(&lt, &t);
+    d.year_   = lt.tm_year + 1900;
+    d.month_  = lt.tm_mon + 1;
+    d.day_    = lt.tm_mday;
+    d.hour_   = lt.tm_hour;
+    d.minute_ = lt.tm_min;
+    d.second_ = lt.tm_sec;
+#else
+    std::tm* lt = std::localtime(&t);
+    d.year_   = lt->tm_year + 1900;
+    d.month_  = lt->tm_mon + 1;
+    d.day_    = lt->tm_mday;
+    d.hour_   = lt->tm_hour;
+    d.minute_ = lt->tm_min;
+    d.second_ = lt->tm_sec;
+#endif
+    d.valid_ = true;
+    return d;
+  }
+
+  bool DateTime::isValid() const { return valid_; }
+  bool DateTime::isNull() const  { return !valid_; }
+
+  void DateTime::clear()
+  {
+    year_ = month_ = day_ = hour_ = minute_ = second_ = 0;
+    valid_ = false;
+  }
+
+  String DateTime::toString(const std::string& format) const
+  {
+    // Minimal support: "yyyy-MM-ddThh:mm:ss" and default "yyyy-MM-dd hh:mm:ss"
+    if (!valid_) return "0000-00-00 00:00:00";
+    std::ostringstream oss;
+    if (format == "yyyy-MM-ddThh:mm:ss")
+    {
+      oss << std::setfill('0') << std::setw(4) << year_ << '-'
+          << std::setw(2) << month_ << '-'
+          << std::setw(2) << day_ << 'T'
+          << std::setw(2) << hour_ << ':'
+          << std::setw(2) << minute_ << ':'
+          << std::setw(2) << second_;
+      return String(oss.str());
+    }
+    // default to space separator
+    oss << std::setfill('0') << std::setw(4) << year_ << '-'
+        << std::setw(2) << month_ << '-'
+        << std::setw(2) << day_ << ' '
+        << std::setw(2) << hour_ << ':'
+        << std::setw(2) << minute_ << ':'
+        << std::setw(2) << second_;
+    return String(oss.str());
+  }
+
+  DateTime DateTime::fromString(const std::string& date, const std::string& format)
+  {
+    DateTime d;
+    if (format == "yyyy-MM-ddThh:mm:ss")
+    {
+      if (date.size() < 19) return d;
+      d.set(String(date.substr(0, 10) + " " + date.substr(11, 8)));
+      return d;
+    }
+    // default try to set() directly
+    d.set(String(date));
     return d;
   }
 
   String DateTime::get() const
   {
-    if (dt_->isValid())
+    return toString("yyyy-MM-dd hh:mm:ss");
+  }
+
+  void DateTime::set(const String& date)
+  {
+    clear();
+    // Supported patterns:
+    // - "MM/dd/yyyy hh:mm:ss"
+    // - "dd.MM.yyyy hh:mm:ss"
+    // - "yyyy-MM-dd hh:mm:ss"
+    // - "yyyy-MM-ddThh:mm:ss"
+    // - "yyyy-MM-ddZ" (date-only)
+    // - "yyyy-MM-dd+hh:mm" (date-only, ignore timezone)
+    String d = date;
+    if (d.has('T'))
     {
-      return dt_->toString("yyyy-MM-dd hh:mm:ss");
+      // ISO "yyyy-MM-ddThh:mm:ss"
+      String ds = d.prefix('T');
+      String ts = String(d.c_str() + static_cast<int>(ds.size()) + 1);
+      setDate(ds);
+      setTime(ts);
+      return;
     }
-    return "0000-00-00 00:00:00";
-  }
-
-  void DateTime::get(UInt& month, UInt& day, UInt& year,
-                     UInt& hour, UInt& minute, UInt& second) const
-  {
-    const QDate& temp_date = dt_->date();
-    const QTime& temp_time = dt_->time();
-
-    year = temp_date.year();
-    month = temp_date.month();
-    day = temp_date.day();
-    hour = temp_time.hour();
-    minute = temp_time.minute();
-    second = temp_time.second();
-  }
-
-  void DateTime::clear()
-  {
-    *dt_ = QDateTime();
-  }
-
-  void DateTime::setDate(const String& date)
-  {
-    QDate temp_date;
-
-    if (date.has('-'))
+    if (d.has('Z') && d.size() >= 10)
     {
-      temp_date = QDate::fromString(date.c_str(), "yyyy-MM-dd");
+      // "yyyy-MM-ddZ" -> date only
+      setDate(d.prefix('Z'));
+      setTime(String("00:00:00"));
+      return;
     }
-    else if (date.has('.'))
+    if (d.has('+') && d.size() >= 10)
     {
-      temp_date = QDate::fromString(date.c_str(), "dd-MM-yyyy");
+      // "yyyy-MM-dd+hh:mm" -> date only; ignore tz
+      setDate(d.prefix('+'));
+      setTime(String("00:00:00"));
+      return;
     }
-    else if (date.has('/'))
+    // space separator "yyyy-MM-dd hh:mm:ss" or other
+    if (d.has(' '))
     {
-      temp_date = QDate::fromString(date.c_str(), "MM/dd/yyyy");
+      String ds = d.prefix(' ');
+      String ts = String(d.c_str() + static_cast<int>(ds.size()) + 1);
+      setDate(ds);
+      setTime(ts);
+      return;
     }
-    else
-    {
-      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, date, "Could not set date");
-    }
-    if (!temp_date.isValid())
-    {
-      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, date, "Could not set date");
-    }
-
-    dt_->setDate(temp_date);
+    // Fallback: only date provided
+    setDate(d);
+    setTime(String("00:00:00"));
   }
-
-  void DateTime::setTime(const String& time)
-  {
-    QTime temp_time;
-
-    temp_time = QTime::fromString(time.c_str(), "hh:mm:ss");
-    if (!temp_time.isValid())
-    {
-      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, time, "Could not set time");
-    }
-
-    dt_->setTime(temp_time);
-  }
-
-  void DateTime::setDate(UInt month, UInt day, UInt year)
-  {
-    QDate temp_date;
-
-    if (!temp_date.setDate(year, month, day))
-    {
-      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, String(year) + "-" + String(month) + "-" + String(day), "Could not set date");
-    }
-
-    dt_->setDate(temp_date);
-  }
-
-  void DateTime::setTime(UInt hour, UInt minute, UInt second)
-  {
-    QTime temp_time;
-
-    if (!temp_time.setHMS(hour, minute, second))
-    {
-      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, String(hour) + ":" + String(minute) + ":" + String(second), "Could not set time");
-    }
-    dt_->setTime(temp_time);
-  }
-
-  void DateTime::getDate(UInt& month, UInt& day, UInt& year) const
-  {
-    const QDate& temp_date = dt_->date();
-
-    month = temp_date.month();
-    day = temp_date.day();
-    year = temp_date.year();
-  }
-
-  String DateTime::getDate() const
-  {
-    if (dt_->isValid())
-    {
-      return dt_->date().toString("yyyy-MM-dd");
-    }
-    return "0000-00-00";
-  }
-
-  void DateTime::getTime(UInt& hour, UInt& minute, UInt& second) const
-  {
-    const QTime& temp_time =dt_->time();
-
-    hour = temp_time.hour();
-    minute = temp_time.minute();
-    second = temp_time.second();
-  }
-
-  String DateTime::getTime() const
-  {
-    if (dt_->isValid())
-    {
-      return dt_->time().toString("hh:mm:ss");
-    }
-    return "00:00:00";
-  }
-  
-  DateTime& DateTime::addSecs(int s)
-  {
-    *dt_ = dt_->addSecs(s);
-    return *this;
-  }
-
-  bool DateTime::isNull() const
-  {
-    return dt_->isNull();
-  }
-
-  // static
-  DateTime DateTime::fromString(const std::string& date, const std::string& format)
-  {
-    DateTime d;
-    *d.dt_ = QDateTime::fromString(QString::fromStdString(date), QString::fromStdString(format));
-    return d;
-  }
-
 } // namespace OpenMS

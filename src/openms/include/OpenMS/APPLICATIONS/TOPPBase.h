@@ -22,7 +22,6 @@
 
 #include <fstream>
 
-#include <QtCore/QString>
 
 #include <vector> // for std::vector
 

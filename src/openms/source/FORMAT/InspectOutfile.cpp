@@ -14,7 +14,7 @@
 
 #include <OpenMS/CONCEPT/LogStream.h>
 #include <OpenMS/FORMAT/InspectOutfile.h>
-#include <QtCore/QRegularExpression>
+#include <regex>
 
 #include <fstream>
 
@@ -1125,15 +1125,15 @@ namespace OpenMS
   {
     protein_identification.setSearchEngine("InsPecT");
     protein_identification.setSearchEngineVersion("unknown");
-    // searching for something like this: InsPecT version 20060907, InsPecT version 20100331
-    QString response(cmd_output.toQString());
-    QRegularExpression rx("InsPecT (version|vesrion) (\\d+)"); // older versions of InsPecT have typo...
-    auto match = rx.match(response);
-    if (!match.hasMatch())
+    // Match e.g. "InsPecT version 20060907" (older InsPecT had typo "vesrion")
+    static const std::regex rx(R"(InsPecT (version|vesrion) (\d+))");
+    std::smatch m;
+    const std::string s = static_cast<const std::string&>(cmd_output);
+    if (!std::regex_search(s, m, rx) || m.size() < 3)
     {
       return false;
     }
-    protein_identification.setSearchEngineVersion(match.captured(2));
+    protein_identification.setSearchEngineVersion(m[2].str());
     return true;
   }
 

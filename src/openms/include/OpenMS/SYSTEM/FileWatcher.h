@@ -14,8 +14,8 @@
 #include <OpenMS/DATASTRUCTURES/String.h>
 #include <map>
 
-//Qt
-#include <QtCore/QFileSystemWatcher>
+// NOTE: Qt dependency removed from OpenMS core. FileWatcher is disabled in core build.
+// If functionality is required, it must be provided from OpenMS GUI or via a non-Qt implementation.
 
 //STL
 #include <map>
@@ -36,51 +36,18 @@ namespace OpenMS
 
       @ingroup System
   */
-  class OPENMS_DLLAPI FileWatcher :
-    public QFileSystemWatcher       //find out why ICC requires public instead of protected
+  // FileWatcher is not available without Qt in OpenMS core.
+  // A lightweight stub is provided to keep API presence without linking Qt.
+  class OPENMS_DLLAPI FileWatcher
   {
-    Q_OBJECT
+  public:
+    FileWatcher(void* /*parent*/ = nullptr) {}
+    ~FileWatcher() = default;
 
-public:
-    /// Constructor
-    FileWatcher(QObject * parent = nullptr);
+    inline void setDelayInSeconds(double /*delay*/) {}
 
-    /// Destructor
-    ~FileWatcher() override;
-
-    ///Sets the delay in seconds (default: 1s)
-    inline void setDelayInSeconds(double delay)
-    {
-      delay_in_seconds_ = delay;
-    }
-
-    ///Adds a file to the watcher
-    inline void addFile(const String & path)
-    {
-      QFileSystemWatcher::addPath(path.toQString());
-    }
-
-    ///removes a file from the watcher
-    inline void removeFile(const String & path)
-    {
-      QFileSystemWatcher::removePath(path.toQString());
-    }
-
-signals:
-    ///Delayed file change signal
-    void fileChanged(const String &);
-
-protected slots:
-    /// Slot that is connected to the fileChanged signal in order to track the changes
-    void monitorFileChanged_(const QString & name);
-    /// Slot that is called when the delay is over
-    void timerTriggered_();
-
-protected:
-    /// A map that links timer name and file
-    std::map<QString, QString> timers_;
-    /// Delay (seconds)
-    double delay_in_seconds_;
+    inline void addFile(const String& /*path*/) {}
+    inline void removeFile(const String& /*path*/) {}
   };
 
   // OPENMS_DLLAPI extern FileWatcher myFileWatcher_instance;

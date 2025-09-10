@@ -14,8 +14,6 @@
 #include <OpenMS/CONCEPT/Types.h>
 #include <OpenMS/OpenMSConfig.h>
 
-class QString;
-
 namespace OpenMS
 {
     class ParamValue;
@@ -75,8 +73,6 @@ public:
     DataValue(const std::string&);
     /// specific constructor for string values
     DataValue(const String&);
-    /// specific constructor for QString values
-    DataValue(const QString&);
     /// specific constructor for string lists
     DataValue(const StringList&);
     /// specific constructor for integer lists
@@ -301,8 +297,6 @@ public:
     DataValue& operator=(const std::string&);
     /// specific assignment for string values
     DataValue& operator=(const String&);
-    /// specific assignment for QString values
-    DataValue& operator=(const QString&);
     /// specific assignment for string lists
     DataValue& operator=(const StringList&);
     /// specific assignment for integer lists
@@ -344,8 +338,6 @@ public:
     **/
     String toString(bool full_precision = true) const;
 
-    ///Conversion to QString
-    QString toQString() const;
     //@}
 
     /// returns the type of value stored

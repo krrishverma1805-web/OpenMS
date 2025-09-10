@@ -9,11 +9,9 @@
 #pragma once
 
 #include <OpenMS/DATASTRUCTURES/DefaultParamHandler.h>
-#include <QtCore/QObject>
-#include <QtCore/QString>
-#include <QtCore/QTimer>
-#include <QtNetwork/QNetworkAccessManager>
-#include <QtNetwork/QNetworkReply>
+#include <OpenMS/DATASTRUCTURES/String.h>
+#include <string>
+#include <vector>
 
 
 namespace OpenMS
@@ -27,11 +25,13 @@ namespace OpenMS
       @htmlinclude OpenMS_MascotRemoteQuery.parameters
 
   */
+  // NOTE:
+  // This class previously depended on Qt (QObject/QNetwork*). To remove Qt from OpenMS core,
+  // the interface is stubbed for now to preserve symbol presence without Qt.
+  // A proper cpp-httplib based implementation should replace this stub.
   class MascotRemoteQuery :
-    public QObject,
     public DefaultParamHandler
   {
-    Q_OBJECT
 
 public:
 
@@ -39,7 +39,7 @@ public:
     */
     //@{
     /// default constructor
-    OPENMS_DLLAPI MascotRemoteQuery(QObject* parent = 0);
+    OPENMS_DLLAPI MascotRemoteQuery(void* parent = nullptr);
 
     /// assignment operator
     OPENMS_DLLAPI MascotRemoteQuery& operator=(const MascotRemoteQuery& rhs) = delete;
@@ -55,10 +55,10 @@ public:
     OPENMS_DLLAPI void setQuerySpectra(const String& exp);
 
     /// returns the Mascot XML response which contains the identifications
-    OPENMS_DLLAPI const QByteArray& getMascotXMLResponse() const;
+    OPENMS_DLLAPI OpenMS::String getMascotXMLResponse() const;
 
     /// returns the Mascot XML response which contains the decoy identifications (note: setExportDecoys must be set to true, otherwise result will be empty)
-    OPENMS_DLLAPI const QByteArray& getMascotXMLDecoyResponse() const;
+    OPENMS_DLLAPI OpenMS::String getMascotXMLDecoyResponse() const;
 
     /// predicate which returns true if an error occurred during the query
     OPENMS_DLLAPI bool hasError() const;
@@ -76,34 +76,10 @@ protected:
 
     OPENMS_DLLAPI void updateMembers_() override;
 
-public slots:
+public:
 
+    /// synchronous execution (stub)
     OPENMS_DLLAPI void run();
-
-private slots:
-
-    /// slot connected to QTimer (timeout_)
-    OPENMS_DLLAPI void timedOut() const;
-
-    /// slot connected to the QNetworkAccessManager::finished signal
-    OPENMS_DLLAPI void readResponse(QNetworkReply* reply);
-
-    /// slot connected to signal downloadProgress
-    OPENMS_DLLAPI void downloadProgress(qint64 bytes_read, qint64 bytes_total);
-
-    /// slot connected to signal uploadProgress
-    OPENMS_DLLAPI void uploadProgress(qint64 bytes_read, qint64 bytes_total);
-
-    /// slot connected to signal gotRedirect
-    OPENMS_DLLAPI void followRedirect(QNetworkReply * reply);
-
-signals:
-
-    /// signal when class got a redirect
-    OPENMS_DLLAPI void gotRedirect(QNetworkReply * reply);
-
-    /// signal when class is done and results can be collected
-    OPENMS_DLLAPI void done();
 
 private:
 
@@ -114,43 +90,21 @@ private:
     void execQuery();
 
     /// download result file
-    void getResults(const QString& results_path);
+    void getResults(const OpenMS::String& /*results_path*/) {}
 
-    /// finish a run and emit "done"
-    OPENMS_DLLAPI void endRun_();
-
-    /**
-      @brief Remove host name information from an url, e.g., "http://www.google.de/search" -> "search"
-
-      @param url The url that will be manipulated.
-    */
-    void removeHostName_(QString& url);
-
-    /// helper function to build URL
-    QUrl buildUrl_(const std::string& path);
-
-    /// Write HTTP header to error stream (for debugging)
-    OPENMS_DLLAPI void logHeader_(const QNetworkRequest& header, const String& what);
-
-    /// Write HTTP header to error stream (for debugging)
-    OPENMS_DLLAPI void logHeader_(const QNetworkReply* header, const String& what);
+    /// finish a run
+    OPENMS_DLLAPI void endRun_() {}
 
     OPENMS_DLLAPI String getSearchIdentifierFromFilePath(const String& path) const;
 
-    /// parse new response header
-    OPENMS_DLLAPI void readResponseHeader(const QNetworkReply* reply);
-
-    QNetworkAccessManager* manager_;
-
     // Input / Output data
     String query_spectra_;
-    QByteArray mascot_xml_;
-    QByteArray mascot_decoy_xml_;
+    String mascot_xml_;
+    String mascot_decoy_xml_;
 
     // Internal data structures
-    QString cookie_;
+    String cookie_;
     String error_message_;
-    QTimer timeout_;
     String search_identifier_;
 
     /// Path on mascot server

@@ -58,7 +58,7 @@ namespace OpenMS
     ExternalProcess(std::function<void(const String&)> callbackStdOut, std::function<void(const String&)> callbackStdErr);
 
     /// D'tor
-    ~ExternalProcess() override ;
+    ~ExternalProcess();
 
     /// re-wire the callbacks used during run()
     void setCallbacks(std::function<void(const String&)> callbackStdOut, std::function<void(const String&)> callbackStdErr);

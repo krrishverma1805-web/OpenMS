@@ -161,10 +161,10 @@ protected:
       QProcess pr;
       QStringList arguments;
       arguments << "-write_ini";
-      arguments << tmp_ini_file.toQString();
+      arguments << QString::fromStdString(static_cast<const std::string&>(tmp_ini_file));
       arguments << "-instance";
-      arguments << String(this_instance).toQString();
-      pr.start((path + "/" + new_tool).toQString(), arguments);
+      arguments << QString::fromStdString(static_cast<const std::string&>(String(this_instance)));
+      pr.start(QString::fromStdString(static_cast<const std::string&>(path + "/" + new_tool)), arguments);
       if (!pr.waitForFinished(-1))
       {
         writeLogWarn_("Update for file " + infile + " failed because the tool '" + new_tool + "' returned with an error! Check if the tool works properly.");
@@ -199,8 +199,8 @@ protected:
     QApplication app(argc, const_cast<char**>(argv), false);
     String tmp_dir = File::getTempDirectory() + "/" + File::getUniqueName();
     QDir d;
-    d.mkpath(tmp_dir.toQString());
-    TOPPASScene ts(nullptr, tmp_dir.toQString(), false);
+    d.mkpath(QString::fromStdString(static_cast<const std::string&>(tmp_dir)));
+    TOPPASScene ts(nullptr, QString::fromStdString(static_cast<const std::string&>(tmp_dir)), false);
     paramFile.store(tmp_ini_file, p);
     ts.load(tmp_ini_file);
     ts.store(tmp_ini_file);
@@ -209,9 +209,9 @@ protected:
     // STORE
     if (outfile.empty()) // create a backup
     {
-      QFileInfo fi(infile.toQString());
-      String new_name = String(fi.path()) + "/" + fi.completeBaseName() + "_v" + version + ".toppas";
-      QFile::rename(infile.toQString(), new_name.toQString());
+      QFileInfo fi(QString::fromStdString(static_cast<const std::string&>(infile)));
+      String new_name = String(fi.path().toStdString()) + "/" + String(fi.completeBaseName().toStdString()) + "_v" + version + ".toppas";
+      QFile::rename(QString::fromStdString(static_cast<const std::string&>(infile)), QString::fromStdString(static_cast<const std::string&>(new_name)));
       // write new file
       paramFile.store(infile, p);
     }
@@ -286,10 +286,10 @@ protected:
       QProcess pr;
       QStringList arguments;
       arguments << "-write_ini";
-      arguments << tmp_ini_file.toQString();
+      arguments << QString::fromStdString(static_cast<const std::string&>(tmp_ini_file));
       arguments << "-instance";
-      arguments << String(this_instance).toQString();
-      pr.start((path + "/" + new_tool).toQString(), arguments);
+      arguments << QString::fromStdString(static_cast<const std::string&>(String(this_instance)));
+      pr.start(QString::fromStdString(static_cast<const std::string&>(path + "/" + new_tool)), arguments);
       if (!pr.waitForFinished(-1))
       {
         writeLogWarn_("Update for file '" + infile + "' failed because the tool '" + new_tool + "' returned with an error! Check if the tool works properly.");
@@ -317,9 +317,9 @@ protected:
     // STORE
     if (outfile.empty()) // create a backup
     {
-      QFileInfo fi(infile.toQString());
-      String backup_filename = String(fi.path()) + "/" + fi.completeBaseName() + "_v" + version_old + ".ini";
-      QFile::rename(infile.toQString(), backup_filename.toQString());
+      QFileInfo fi(QString::fromStdString(static_cast<const std::string&>(infile)));
+      String backup_filename = String(fi.path().toStdString()) + "/" + String(fi.completeBaseName().toStdString()) + "_v" + version_old + ".ini";
+      QFile::rename(QString::fromStdString(static_cast<const std::string&>(infile)), QString::fromStdString(static_cast<const std::string&>(backup_filename)));
       std::cout << "Backup of input file created: " << backup_filename << std::endl;
       // write updated/new file
       paramFile.store(infile, p);

@@ -69,6 +69,7 @@
 #include <OpenMS/FORMAT/IdXMLFile.h>
 #include <OpenMS/FORMAT/TextFile.h>
 
+#include <OpenMS/SYSTEM/File.h>
 #include <OpenMS/MATH/MathFunctions.h>
 #include <OpenMS/MATH/StatisticFunctions.h>
 
@@ -4154,33 +4155,33 @@ static void scoreXLIons_(
 #ifdef OPENMS_WINDOWSPLATFORM      
     if (net_executable.empty())
     { // default on Windows: if no mono executable is set use the "native" .NET one
-      arguments << String("-i=" + in).toQString()
-                << String("--output_file=" + out).toQString()
-                << String("-f=2").toQString() // indexedMzML
-                << String("-e").toQString(); // ignore instrument errors
-      if (no_peak_picking)  { arguments << String("--noPeakPicking").toQString(); }
-      exit_code = runExternalProcess_(getStringOption_("ThermoRaw_executable").toQString(), arguments);
+      arguments << String("-i=" + in)
+                << String("--output_file=" + out)
+                << String("-f=2") // indexedMzML
+                << String("-e"); // ignore instrument errors
+      if (no_peak_picking)  { arguments << String("--noPeakPicking"); }
+      exit_code = runExternalProcess_(getStringOption_("ThermoRaw_executable"), arguments);
     }
     else
     { // use e.g., mono
-      arguments << getStringOption_("ThermoRaw_executable").toQString()
-                << String("-i=" + in).toQString()
-                << String("--output_file=" + out).toQString()
-                << String("-f=2").toQString()
-                << String("-e").toQString();
-      if (no_peak_picking)  { arguments << String("--noPeakPicking").toQString(); }
-      exit_code = runExternalProcess_(net_executable.toQString(), arguments);       
+      arguments << getStringOption_("ThermoRaw_executable")
+                << String("-i=" + in)
+                << String("--output_file=" + out)
+                << String("-f=2")
+                << String("-e");
+      if (no_peak_picking)  { arguments << String("--noPeakPicking"); }
+      exit_code = runExternalProcess_(net_executable, arguments);       
     }      
 #else
     // default on Mac, Linux: use mono
     net_executable = net_executable.empty() ? "mono" : net_executable;
-    arguments << getStringOption_("ThermoRaw_executable").toQString()
-              << String("-i=" + in).toQString()
-              << String("--output_file=" + out).toQString()
-              << String("-f=2").toQString()
-              << String("-e").toQString();
-    if (no_peak_picking)  { arguments << String("--noPeakPicking").toQString(); }
-    exit_code = runExternalProcess_(net_executable.toQString(), arguments);       
+    arguments << getStringOption_("ThermoRaw_executable")
+              << String("-i=" + in)
+              << String("--output_file=" + out)
+              << String("-f=2")
+              << String("-e");
+    if (no_peak_picking)  { arguments << String("--noPeakPicking"); }
+    exit_code = runExternalProcess_(net_executable, arguments);       
 #endif
     if (exit_code != ExitCodes::EXECUTION_OK)
     {
@@ -4659,13 +4660,13 @@ static void scoreXLIons_(
     if (!extra_output_directory.empty())
     {
       // convert path to absolute path
-      QDir extra_dir(extra_output_directory.toQString());
+      QDir extra_dir(extra_output_directory);
       extra_output_directory = String(extra_dir.absolutePath());
 
       // trying to create directory if not present
       if (!extra_dir.exists())
       {
-        extra_dir.mkpath(extra_output_directory.toQString());
+        extra_dir.mkpath(extra_output_directory);
       }
     }
 
@@ -4778,13 +4779,13 @@ static void scoreXLIons_(
           weights_out.substitute(".idXML", "_sse_perc.weights");
 
           QStringList process_params;
-          process_params << "-in" << perc_in.toQString()
-                       << "-out" << perc_out.toQString()
-                       << "-percolator_executable" << percolator_executable.toQString()
+          process_params << "-in" << perc_in
+                       << "-out" << perc_out
+                       << "-percolator_executable" << percolator_executable
                        << "-train_best_positive" 
                        << "-score_type" << "q-value"
                        << "-post_processing_tdc"
-                       << "-weights" << weights_out.toQString()
+                       << "-weights" << weights_out
 //                       << "-nested_xval_bins" << "3"
                        ;
 
@@ -6352,7 +6353,7 @@ static void scoreXLIons_(
         // copy XL results (with highest threshold=little filtering) to output
         if (!out_xl_idxml.empty())
         {
-          QFile::copy(String(original_PSM_output_filename + String::number(xl_fdr_max, 4) + "_XLs.idXML").toQString(), out_xl_idxml.toQString());
+          File::copy(String(original_PSM_output_filename + String::number(xl_fdr_max, 4) + "_XLs.idXML"), out_xl_idxml);
         }
       }
       else
@@ -6372,7 +6373,7 @@ static void scoreXLIons_(
         // copy XL results (with highest threshold=little filtering) to output
         if (!out_xl_idxml.empty())
         {
-          QFile::copy(String(b + String::number(xl_fdr_max, 4) + "_XLs.idXML").toQString(), out_xl_idxml.toQString());
+          File::copy(String(b + String::number(xl_fdr_max, 4) + "_XLs.idXML"), out_xl_idxml);
         }
       }
 
@@ -6394,16 +6395,16 @@ static void scoreXLIons_(
         pin.substitute(".idXML", ".tsv");
 
         QStringList process_params;
-        process_params << "-in" << out_idxml.toQString()
-                       << "-out" << perc_out.toQString()
-                       << "-percolator_executable" << percolator_executable.toQString()
+        process_params << "-in" << out_idxml
+                       << "-out" << perc_out
+                       << "-percolator_executable" << percolator_executable
                        << "-train_best_positive" 
                        << "-score_type" << "svm"
                        << "-unitnorm"
                        << "-post_processing_tdc"
 //                       << "-nested_xval_bins" << "3"
-                       << "-weights" << weights_out.toQString()
-                       << "-out_pin" << pin.toQString();
+                       << "-weights" << weights_out
+                       << "-out_pin" << pin;
 
         if (getStringOption_("peptide:enzyme") == "Lys-C")
         {
@@ -6466,7 +6467,7 @@ static void scoreXLIons_(
             // copy XL results (with highest threshold=little filtering) to outut TODO: first copy would not be needed
             if (!out_xl_idxml.empty())
             {
-              QFile::copy(String(percolator_PSM_output_filename + String::number(xl_fdr_max, 4) + "_XLs.idXML").toQString(), out_xl_idxml.toQString());
+              File::copy(String(percolator_PSM_output_filename + String::number(xl_fdr_max, 4) + "_XLs.idXML"), out_xl_idxml);
             }
           }
           else
@@ -6488,7 +6489,7 @@ static void scoreXLIons_(
             // copy XL results (with highest threshold=little filtering) to output TODO: first copy would not be needed if percolator succeeds
             if (!out_xl_idxml.empty())
             {
-              QFile::copy(String(b + String::number(xl_fdr_max, 4) + "_XLs.idXML").toQString(), out_xl_idxml.toQString());
+              File::copy(String(b + String::number(xl_fdr_max, 4) + "_XLs.idXML"), out_xl_idxml);
             }
           }
           OPENMS_LOG_INFO << "done." << endl;

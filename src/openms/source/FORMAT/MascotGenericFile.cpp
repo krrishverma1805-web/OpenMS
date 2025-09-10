@@ -18,7 +18,7 @@
 #include <OpenMS/METADATA/SpectrumLookup.h>
 
 #include <filesystem>
-#include <QtCore/QRegularExpression>
+#include <regex>
 
 #include <iomanip>     // setw
 
@@ -421,9 +421,10 @@ namespace OpenMS
       os << enc.first;
     }
 
-    std::filesystem::path file_path(filename);
-    QString filtered_filename = QString::fromStdString(file_path.stem().string());
-    filtered_filename.remove(QRegularExpression("[^a-zA-Z0-9]"));
+    std::filesystem::path file_path{static_cast<const std::string&>(filename)};
+    std::string base = file_path.stem().string();
+    base = std::regex_replace(base, std::regex("[^A-Za-z0-9]"), "");
+    String filtered_filename(base);
 
 
     String native_id_type_accession;

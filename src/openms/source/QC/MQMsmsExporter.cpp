@@ -32,7 +32,7 @@ MQMsms::MQMsms(const String& path)
   filename_ = path + "/msms.txt";
   try
   {
-    std::filesystem::create_directories(path);
+    std::filesystem::create_directories(std::filesystem::path(static_cast<const std::string&>(path)));
     file_ = std::fstream(filename_, std::fstream::out);
   }
   catch (...)

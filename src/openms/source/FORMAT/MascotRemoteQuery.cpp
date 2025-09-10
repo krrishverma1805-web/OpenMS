@@ -9,13 +9,6 @@
 #include <OpenMS/FORMAT/MascotRemoteQuery.h>
 #include <OpenMS/CONCEPT/LogStream.h>
 
-#include <QtGui/QTextDocument>
-#include <QtNetwork/QNetworkReply>
-#include <QtNetwork/QNetworkProxy>
-#include <QtNetwork/QSslSocket>
-
-#include <QRegularExpression>
-
 // #define MASCOTREMOTEQUERY_DEBUG
 // #define MASCOTREMOTEQUERY_DEBUG_FULL_QUERY
 
@@ -24,10 +17,8 @@ using namespace std;
 namespace OpenMS
 {
 
-  MascotRemoteQuery::MascotRemoteQuery(QObject* parent) :
-    QObject(parent),
-    DefaultParamHandler("MascotRemoteQuery"),
-    manager_(nullptr)
+  MascotRemoteQuery::MascotRemoteQuery(void* /*parent*/) :
+    DefaultParamHandler("MascotRemoteQuery")
   {
     // server specifications
     defaults_.setValue("hostname", "", "Address of the host where Mascot listens, e.g. 'mascot-server' or '127.0.0.1'");
@@ -66,75 +57,14 @@ namespace OpenMS
     defaultsToParam_();
   }
 
-  MascotRemoteQuery::~MascotRemoteQuery()
-  {
-#ifdef MASCOTREMOTEQUERY_DEBUG
-      std::cerr << "MascotRemoteQuery::~MascotRemoteQuery()\n";
-#endif
-    if (manager_) {delete manager_;}
-  }
+  MascotRemoteQuery::~MascotRemoteQuery() = default;
 
-  void MascotRemoteQuery::timedOut() const
-  {
-    OPENMS_LOG_FATAL_ERROR << "Mascot request timed out after " << to_ << " seconds! See 'timeout' parameter for details!" << std::endl;
-  }
 
   void MascotRemoteQuery::run()
   {
-    // Due to the asynchronous nature of Qt network requests (and the resulting use
-    // of signals and slots), the information flow in this class is not very
-    // clear. After the initial call to "run", the steps are roughly as follows:
-    //
-    // 1. optional: log into Mascot server (function "login")
-    // 2. send query (function "execQuery")
-    // 3. read query result, prepare exporting (function "readResponse")
-    // 4. send export request (function "getResults")
-    // 5. Mascot 2.4: read result, check for redirect (function "readResponse")
-    // 6. Mascot 2.4: request redirected (caching) page (function "getResults")
-    // (5. and 6. can happen multiple times - keep following redirects)
-    // 7. Mascot 2.4: read result, check if caching is done (function "readResponse")
-    // 8. Mascot 2.4: request results again (function "getResults")
-    // 9. read results, which should now contain the XML (function "readResponse")
-    //
-
     updateMembers_();
-
-    // Make sure we do not mess with the asynchronous nature of the call and
-    // start a second one while the first one is still running.
-    if (manager_)
-    {
-      throw OpenMS::Exception::IllegalArgument(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION,
-          "Error: Please call run() only once per MascotRemoteQuery.");
-    }
-    manager_ = new QNetworkAccessManager(this);
-
-    if (!use_ssl_)
-    {
-      manager_->connectToHost(host_name_.c_str(), (UInt)param_.getValue("host_port"));
-    }
-    else
-    {
-#ifndef QT_NO_SSL
-      manager_->connectToHostEncrypted(host_name_.c_str(), (UInt)param_.getValue("host_port"));
-#else
-      // should not happen since it is checked during parameter reading. Kept for safety.
-      throw OpenMS::Exception::IllegalArgument(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION,
-          "Error: Usage of SSL encryption requested but the linked QT library was not compiled with SSL support. Please recompile QT.");
-#endif
-    }
-
-    connect(this, SIGNAL(gotRedirect(QNetworkReply *)), this, SLOT(followRedirect(QNetworkReply *)));
-    connect(&timeout_, SIGNAL(timeout()), this, SLOT(timedOut()));
-    connect(manager_, SIGNAL(finished(QNetworkReply*)), this, SLOT(readResponse(QNetworkReply*)));
-
-    if (param_.getValue("login").toBool())
-    {
-      login();
-    }
-    else
-    {
-      execQuery();
-    }
+    // Not implemented without Qt yet
+    throw OpenMS::Exception::NotImplemented(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION);
   }
 
   void MascotRemoteQuery::login()

@@ -857,7 +857,7 @@ namespace OpenMS::Internal
     void MzMLSqliteHandler::createTables()
     {
       // delete file if present
-      std::filesystem::remove(filename_);
+      std::filesystem::remove(std::filesystem::path(filename_.c_str()));
 
       SqliteConnector conn(filename_);
 

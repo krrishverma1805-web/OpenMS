@@ -90,16 +90,16 @@ protected:
 
   ExitCodes main_(int argc, const char ** argv) override
   {
-    QString toppas_file = getStringOption_("in").toQString();
-    QString out_dir_name = getStringOption_("out_dir").toQString();
-    QString resource_file = getStringOption_("resource_file").toQString();
+    QString toppas_file = QString::fromStdString(static_cast<const std::string&>(getStringOption_("in")));
+    QString out_dir_name = QString::fromStdString(static_cast<const std::string&>(getStringOption_("out_dir")));
+    QString resource_file = QString::fromStdString(static_cast<const std::string&>(getStringOption_("resource_file")));
     int num_jobs = getIntOption_("num_jobs");
 
     QApplication a(argc, const_cast<char **>(argv), false);
 
     //set & create temporary path -- make sure its a new subdirectory, as it will be deleted later
-    QString new_tmp_dir = File::getUniqueName().toQString();
-    QDir qd(File::getTempDirectory().toQString());
+    QString new_tmp_dir = QString::fromStdString(static_cast<const std::string&>(File::getUniqueName()));
+    QDir qd(QString::fromStdString(static_cast<const std::string&>(File::getTempDirectory())));
     qd.mkdir(new_tmp_dir);
     qd.cd(new_tmp_dir);
     QString tmp_path = qd.absolutePath();
@@ -113,7 +113,7 @@ protected:
     {
       return UNKNOWN_ERROR;
     }
-    ts.load(toppas_file);
+    ts.load(OpenMS::String(toppas_file.toStdString()));
     ts.setAllowedThreads(num_jobs);
 
     if (resource_file != "")
@@ -130,7 +130,7 @@ protected:
         out_dir_name = QDir::currentPath() + QDir::separator() + out_dir_name;
       }
       out_dir_name = QDir::cleanPath(out_dir_name);
-      if (File::exists(out_dir_name) && File::isDirectory(out_dir_name))
+      if (File::exists(OpenMS::String(out_dir_name.toStdString())) && File::isDirectory(OpenMS::String(out_dir_name.toStdString())))
       {
         ts.setOutDir(out_dir_name);
       }
@@ -142,12 +142,12 @@ protected:
     }
     else
     {
-      QFileInfo fi(ts.getSaveFileName().toQString());
-      out_dir_name = QDir::cleanPath(ts.getOutDir() + QDir::separator() + String(fi.baseName()).toQString() + QDir::separator());
+      QFileInfo fi(QString::fromStdString(static_cast<const std::string&>(ts.getSaveFileName())));
+      out_dir_name = QDir::cleanPath(ts.getOutDir() + QDir::separator() + QString::fromStdString(static_cast<const std::string&>(String(fi.baseName().toStdString()))) + QDir::separator());
       cout << "No output directory specified. Using the user's home directory (" << out_dir_name.toStdString() << ")" << endl;
       ts.setOutDir(out_dir_name);
       QDir qd;
-      if (!(qd.exists(out_dir_name) || qd.mkdir(out_dir_name)) || !File::writable(out_dir_name + "test_file_in_the_current_directory"))
+      if (!(qd.exists(out_dir_name) || qd.mkdir(out_dir_name)) || !File::writable(OpenMS::String((out_dir_name + "test_file_in_the_current_directory").toStdString())))
       {
         cerr << "You do not have permission to write to " << out_dir_name.toStdString() << endl;
         return CANNOT_WRITE_OUTPUT_FILE;
@@ -160,9 +160,9 @@ protected:
     {
       // delete temporary files
       // safety measure: only delete if subdirectory of Temp path; we do not want to delete / or c:
-      if (String(tmp_path).substitute("\\", "/").hasPrefix(File::getTempDirectory().substitute("\\", "/") + "/"))
+      if (String(tmp_path.toStdString()).substitute("\\", "/").hasPrefix(File::getTempDirectory().substitute("\\", "/") + "/"))
       {
-        File::removeDirRecursively(tmp_path);
+        File::removeDirRecursively(OpenMS::String(tmp_path.toStdString()));
       }
 
       return EXECUTION_OK;

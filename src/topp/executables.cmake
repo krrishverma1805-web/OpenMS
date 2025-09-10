@@ -166,6 +166,72 @@ ImageCreator
 INIUpdater
 )
 
+# Gate Qt-dependent TOPP tools behind OpenMS_GUI to avoid Qt requirement in core-only builds
+list(REMOVE_ITEM TOPP_executables
+  CometAdapter
+  AssayGeneratorMetaboSirius
+  IDRipper
+  PercolatorAdapter
+  LuciphorAdapter
+  QCImporter
+  MapStatistics
+  FileConverter
+  MetaProSIP
+  QCExtractor
+  MaRaClusterAdapter
+  QCMerger
+  MzMLSplitter
+  QCExporter
+  QCShrinker
+  FLASHDeconv
+  GenericWrapper
+  MSGFPlusAdapter
+  NovorAdapter
+  MascotAdapterOnline
+  OpenNuXL
+  NucleicAcidSearchEngine
+  QCEmbedder
+  MSFraggerAdapter
+  PSMFeatureExtractor
+  SageAdapter
+  SpectraSTSearchAdapter
+  FeatureFinderMultiplex
+  OpenSwathWorkflow
+  OpenSwathFileSplitter
+)
+
+set(TOPP_executables_with_GUIlib ${TOPP_executables_with_GUIlib}
+  CometAdapter
+  AssayGeneratorMetaboSirius
+  IDRipper
+  PercolatorAdapter
+  LuciphorAdapter
+  QCImporter
+  MapStatistics
+  FileConverter
+  MetaProSIP
+  QCExtractor
+  MaRaClusterAdapter
+  QCMerger
+  MzMLSplitter
+  QCExporter
+  QCShrinker
+  FLASHDeconv
+  GenericWrapper
+  MSGFPlusAdapter
+  NovorAdapter
+  MascotAdapterOnline
+  OpenNuXL
+  NucleicAcidSearchEngine
+  QCEmbedder
+  MSFraggerAdapter
+  PSMFeatureExtractor
+  SageAdapter
+  SpectraSTSearchAdapter
+  FeatureFinderMultiplex
+  OpenSwathWorkflow
+  OpenSwathFileSplitter
+)
 ### add filenames to Visual Studio solution tree
 set(sources_VS)
 foreach(i ${TOPP_executables} ${TOPP_executables_with_GUIlib})

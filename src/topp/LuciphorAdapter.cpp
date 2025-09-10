@@ -547,7 +547,7 @@ protected:
     QString java_memory = "-Xmx" + QString::number(getIntOption_("java_memory")) + "m";
     int java_permgen = getIntOption_("java_permgen");
 
-    QString executable = getStringOption_("executable").toQString();
+    QString executable = QString::fromStdString(static_cast<const std::string&>(getStringOption_("executable")));
 
     QStringList process_params; // the actual process is Java, not LuciPHOr2!
     process_params << java_memory;
@@ -557,12 +557,12 @@ protected:
       process_params << "-XX:MaxPermSize=" + QString::number(java_permgen);
     }
 
-    process_params << "-jar" << executable << conf_file.toQString();
+    process_params << "-jar" << executable << QString::fromStdString(static_cast<const std::string&>(conf_file));
 
     //-------------------------------------------------------------
     // LuciPHOr2
     //-------------------------------------------------------------
-    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable.toQString(), process_params);
+    TOPPBase::ExitCodes exit_code = runExternalProcess_(QString::fromStdString(static_cast<const std::string&>(java_executable)), process_params);
     if (exit_code != EXECUTION_OK)
     {
       return exit_code;

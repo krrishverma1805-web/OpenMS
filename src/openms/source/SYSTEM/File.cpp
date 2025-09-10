@@ -38,8 +38,6 @@
 #include <mach-o/dyld.h>
 #endif
 
-#include <QtCore/QDebug>
-
 #include <httplib.h>
 #include <regex>
 

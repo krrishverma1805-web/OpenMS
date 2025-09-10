@@ -53,9 +53,13 @@ include(${PROJECT_SOURCE_DIR}/configh.cmake)
 # big include file for headers and cpp files, that fills the OpenMS_sources variable
 include (${PROJECT_SOURCE_DIR}/includes.cmake)
 
+# Disable Qt automoc for MascotRemoteQuery header in OpenMS core to avoid Qt build dependency
+# The header remains available for source compatibility but won't trigger MOC/moc_* generation.
+set_source_files_properties(${PROJECT_SOURCE_DIR}/include/OpenMS/FORMAT/MascotRemoteQuery.h PROPERTIES SKIP_AUTOMOC ON)
+
 #------------------------------------------------------------------------------
 # all the dependency libraries are linked into libOpenMS.so
-set(OPENMS_DEP_LIBRARIES Evergreen LibSVM::LibSVM XercesC::XercesC Eigen3::Eigen Qt6::Core Qt6::Network)
+set(OPENMS_DEP_LIBRARIES Evergreen LibSVM::LibSVM XercesC::XercesC Eigen3::Eigen)
 
 ## setup the arguments to 'target_link_libraries(OpenMS PRIVATE ${OPENMS_DEP_PRIVATE_LIBRARIES})'
 set(OPENMS_DEP_PRIVATE_LIBRARIES
@@ -113,6 +117,9 @@ openms_add_library(TARGET_NAME  OpenMS
                                   ${OPENMS_DEP_LIBRARIES}
                    PRIVATE_LINK_LIBRARIES ${OPENMS_DEP_PRIVATE_LIBRARIES}
                    DLL_EXPORT_PATH "OpenMS/")
+
+# Ensure Qt automoc is disabled for OpenMS core target
+set_target_properties(OpenMS PROPERTIES AUTOMOC OFF)
 
 if (MSVC)
   ## treat warning of unused function parameter as error, similar to -Werror=unused-variable on GCC

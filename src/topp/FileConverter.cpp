@@ -279,12 +279,12 @@ protected:
       }
       else
       { // use e.g., mono
-        arguments << getStringOption_("RawToMzML:ThermoRaw_executable").toQString();
+        arguments << QString::fromStdString(static_cast&lt;const std::string&amp;&gt;(getStringOption_("RawToMzML:ThermoRaw_executable")));
       }
 #else
       // default on Mac, Linux: use mono
       net_executable = net_executable.empty() ? "mono" : net_executable;
-      arguments << getStringOption_("RawToMzML:ThermoRaw_executable").toQString();
+      arguments << QString::fromStdString(static_cast&lt;const std::string&amp;&gt;(getStringOption_("RawToMzML:ThermoRaw_executable")));
 #endif
       arguments << ("--input=" + in).c_str()
                 << ("--output=" + out).c_str()
@@ -302,7 +302,7 @@ protected:
       {
         arguments << "--noiseData";
       }
-      return runExternalProcess_(net_executable.toQString(), arguments);
+      return QString::fromStdString(static_cast&lt;const std::string&amp;&gt;(runExternalProcess_(net_executable)), arguments);
     }
     else if (in_type == FileTypes::EDTA)
     {

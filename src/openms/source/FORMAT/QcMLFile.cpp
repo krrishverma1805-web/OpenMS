@@ -58,17 +58,17 @@ namespace OpenMS
 
   bool QcMLFile::QualityParameter::operator<(const QualityParameter& rhs) const
   {
-    return name.toQString() < rhs.name.toQString();
+    return static_cast<const std::string&>(name) < static_cast<const std::string&>(rhs.name);
   }
 
   bool QcMLFile::QualityParameter::operator>(const QualityParameter& rhs) const
   {
-    return name.toQString() > rhs.name.toQString();
+    return static_cast<const std::string&>(name) > static_cast<const std::string&>(rhs.name);
   }
 
   bool QcMLFile::QualityParameter::operator==(const QualityParameter& rhs) const
   {
-    return name.toQString() == rhs.name.toQString();
+    return static_cast<const std::string&>(name) == static_cast<const std::string&>(rhs.name);
   }
 
   String QcMLFile::QualityParameter::toXMLString(UInt indentation_level) const
@@ -136,17 +136,17 @@ namespace OpenMS
 
   bool QcMLFile::Attachment::operator<(const Attachment& rhs) const
   {
-    return name.toQString() < rhs.name.toQString();
+    return static_cast<const std::string&>(name) < static_cast<const std::string&>(rhs.name);
   }
 
   bool QcMLFile::Attachment::operator>(const Attachment& rhs) const
   {
-    return name.toQString() > rhs.name.toQString();
+    return static_cast<const std::string&>(name) > static_cast<const std::string&>(rhs.name);
   }
 
   bool QcMLFile::Attachment::operator==(const Attachment& rhs) const
   {
-    return name.toQString() == rhs.name.toQString();
+    return static_cast<const std::string&>(name) == static_cast<const std::string&>(rhs.name);
   }
 
   String QcMLFile::Attachment::toCSVString(const String& separator) const
@@ -1049,7 +1049,7 @@ namespace OpenMS
       //-------------------------------------------------------------
       // MS acquisition
       //------------------------------------------------------------
-      String base_name = std::filesystem::path(inputfile_raw).stem().string();
+      String base_name = std::filesystem::path(static_cast<const std::string&>(inputfile_raw)).stem().string();
 
       UInt min_mz = std::numeric_limits<UInt>::max();
       UInt max_mz = 0;

@@ -134,7 +134,7 @@ protected:
     //------------------------------------------------------------
     if (!target_file.empty())
     {
-      target_run = QFileInfo(QString::fromStdString(target_file)).baseName();
+      target_run = String(QFileInfo(QString::fromStdString(target_file)).baseName().toStdString());
     }
 
     QcMLFile qcmlfile;
@@ -165,7 +165,7 @@ protected:
     {
       QByteArray ba = f.readAll();
       f.close();
-      plot_b64 = String(QString(ba.toBase64()));
+      plot_b64 = String(QString(ba.toBase64()).toStdString());
     }
 
     QcMLFile::Attachment at;

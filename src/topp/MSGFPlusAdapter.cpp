@@ -417,10 +417,10 @@ protected:
     id.setHigherScoreBetter(false);
   }
 
-  bool createLockedDBIndex(const String& db_name, const QString java_executable, const QString java_memory, const QString executable)
+  bool createLockedDBIndex(const String& db_name, const String java_executable, const QString java_memory, const QString executable)
   {
     const String db_indexfile = FileHandler::stripExtension(db_name) + ".canno";
-    const QString lockfile = (db_name + ".lock").toQString();
+    const QString lockfile = QString::fromStdString(db_name + ".lock");
     QLockFile lock_db(lockfile);
     OPENMS_LOG_DEBUG << "Checking for db index, using a lock file ..." << std::endl;
     if (!lock_db.lock())
@@ -460,7 +460,7 @@ protected:
       process_params << java_memory 
                      << "-cp" << executable
                      << "edu.ucsd.msjava.msdbsearch.BuildSA"
-                     << "-d" << db_name.toQString()
+                     << "-d" << QString::fromStdString(db_name)
                      << "-tda" << "0"; // do NOT add & index a reverse DB (i.e. '-tda=2'), since this DB may already contain FW+BW,
                                        // and duplicating again will cause MSGF+ to error with 'too many redundant proteins'
       
@@ -468,7 +468,10 @@ protected:
       // If no output file is produced, we can print the stderr below.
       String proc_stdout, proc_stderr;
 
-      TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable, process_params, proc_stdout, proc_stderr);
+      std::vector<std::string> args;
+      for (auto & s : process_params) args.push_back(s.toStdString());
+
+      TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable, args, proc_stdout, proc_stderr);
       if (exit_code != EXECUTION_OK)
       {
         // if there was sth like a segfault, runExternalProcess_ will write a warning about the type of error,
@@ -515,10 +518,10 @@ protected:
     }
     
     const QString java_memory = "-Xmx" + QString::number(getIntOption_("java_memory")) + "m";
-    const QString executable = getStringOption_("executable").toQString();
+    const QString executable = QString::fromStdString(getStringOption_("executable"));
     
     const String db_name = getDBFilename();
-    if (!createLockedDBIndex(db_name, java_executable.toQString(), java_memory, executable))
+    if (!createLockedDBIndex(db_name, java_executable, java_memory, executable))
     {
       OPENMS_LOG_ERROR << "Could not create/verify database index. Aborting ..." << std::endl;
       return ExitCodes::INTERNAL_ERROR;
@@ -568,11 +571,11 @@ protected:
     QStringList process_params; // the actual process is Java, not MS-GF+!
     process_params << java_memory
                    << "-jar" << executable
-                   << "-s" << in.toQString()
-                   << "-o" << mzid_temp.toQString()
-                   << "-d" << db_name.toQString()
-                   << "-t" << QString::number(precursor_mass_tol) + precursor_error_units.toQString()
-                   << "-ti" << getStringOption_("isotope_error_range").toQString()
+                   << "-s" << QString::fromStdString(in)
+                   << "-o" << QString::fromStdString(mzid_temp)
+                   << "-d" << QString::fromStdString(db_name)
+                   << "-t" << QString::number(precursor_mass_tol) + QString::fromStdString(precursor_error_units)
+                   << "-ti" << QString::fromStdString(getStringOption_("isotope_error_range"))
                    << "-m" << QString::number(fragment_method_code)
                    << "-inst" << QString::number(instrument_code)
                    << "-e" << QString::number(enzyme_code)
@@ -591,12 +594,12 @@ protected:
     String conf = getStringOption_("conf");
     if (!conf.empty())
     {
-      process_params << "-conf" << conf.toQString();
+      process_params << "-conf" << QString::fromStdString(conf);
     }
 
     if (!mod_file.empty())
     {
-      process_params << "-mod" << mod_file.toQString();
+      process_params << "-mod" << QString::fromStdString(mod_file);
     }
 
     //-------------------------------------------------------------
@@ -610,7 +613,10 @@ protected:
     // If no output file is produced, we can print the stderr below.
     String proc_stdout, proc_stderr; 
     
-    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable.toQString(), process_params, proc_stdout, proc_stderr);
+    std::vector<std::string> args;
+    args.reserve(process_params.size());
+    for (const auto& a : process_params) args.push_back(a.toStdString());
+    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable, args, proc_stdout, proc_stderr);
     if (exit_code != EXECUTION_OK)
     {
       // if there was sth like a segfault, runExternalProcess_ will write a warning about the type of error,
@@ -646,13 +652,16 @@ protected:
           process_params << "-XX:MaxPermSize=" + QString::number(java_permgen) + "m";
         }
         process_params << "-cp" << executable << "edu.ucsd.msjava.ui.MzIDToTsv"
-                       << "-i" << mzid_temp.toQString()
-                       << "-o" << tsv_out.toQString()
+                       << "-i" << QString::fromStdString(mzid_temp)
+                       << "-o" << QString::fromStdString(tsv_out)
                        << "-showQValue" << "1"
                        << "-showDecoy" << "1"
                        << "-unroll" << "1";
         writeLogInfo_("Running MzIDToTSVConverter...");
-        exit_code = runExternalProcess_(java_executable.toQString(), process_params);
+        std::vector<std::string> args;
+        args.reserve(process_params.size());
+        for (const auto& a : process_params) args.push_back(a.toStdString());
+        exit_code = runExternalProcess_(java_executable, args);
         if (exit_code != EXECUTION_OK)
         {
           return exit_code;

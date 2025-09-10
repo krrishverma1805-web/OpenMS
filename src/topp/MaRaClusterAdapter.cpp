@@ -315,23 +315,23 @@ protected:
     // Check all set parameters and get them into arguments StringList
     {
       arguments << "batch";
-      arguments << "-b" << input_file_list.toQString();
-      arguments << "-f" << tmp_dir.getPath().toQString();
-      arguments << "-a" << txt_designator.toQString();
+      arguments << "-b" << QString::fromStdString(input_file_list);
+      arguments << "-f" << QString::fromStdString(tmp_dir.getPath());
+      arguments << "-a" << QString::fromStdString(txt_designator);
 
       map<String,int> precursor_tolerance_units;
       precursor_tolerance_units["ppm"] = 0;
       precursor_tolerance_units["Da"] = 1;
 
-      arguments << "-p" << (String(getDoubleOption_("precursor_tolerance")) + precursor_tolerance_units[getStringOption_("precursor_tolerance_units")]).toQString();
+      arguments << "-p" << QString::fromStdString(String(getDoubleOption_("precursor_tolerance") + precursor_tolerance_units[getStringOption_("precursor_tolerance_units")]));
 
-      arguments << "-t" << String(pcut).toQString();
-      arguments << "-c" << String(pcut).toQString();
+      arguments << "-t" << QString::fromStdString(String(pcut));
+      arguments << "-c" << QString::fromStdString(String(pcut));
 
       Int verbose_level = getIntOption_("verbose");
       if (verbose_level != 2)
       {
-        arguments << "-v" << String(verbose_level).toQString();
+        arguments << "-v" << QString::fromStdString(String(verbose_level));
       }
     }
     writeLogInfo_("Prepared maracluster command.");
@@ -341,7 +341,10 @@ protected:
     //-------------------------------------------------------------
     // MaRaCluster execution with the executable and the arguments StringList
     writeLogInfo_("Executing maracluster ...");
-    auto exit_code = runExternalProcess_(maracluster_executable.toQString(), arguments);
+    std::vector<std::string> args;
+    args.reserve(arguments.size());
+    for (const auto& a : arguments) args.push_back(a.toStdString());
+    auto exit_code = runExternalProcess_(maracluster_executable, args);
     if (exit_code != EXECUTION_OK)
     {
       return exit_code;
@@ -357,7 +360,7 @@ protected:
     //if specified keep original output in designated directory
     if (!maracluster_output_directory.empty())
     {
-      bool copy_status = File::copyDirRecursively(tmp_dir.getPath().toQString(), maracluster_output_directory.toQString());
+      bool copy_status = File::copyDirRecursively(tmp_dir.getPath(), maracluster_output_directory);
 
       if (copy_status)
       { 
@@ -443,14 +446,14 @@ protected:
       // Check all set parameters and get them into arguments StringList
       {
         arguments_consensus << "consensus";
-        arguments_consensus << "-l" << consensus_output_file.toQString();
-        arguments_consensus << "-f" << tmp_dir.getPath().toQString();
-        arguments_consensus << "-o" << consensus_out.toQString();
+        arguments_consensus << "-l" << QString::fromStdString(consensus_output_file);
+        arguments_consensus << "-f" << QString::fromStdString(tmp_dir.getPath());
+        arguments_consensus << "-o" << QString::fromStdString(consensus_out);
         Int min_cluster_size = getIntOption_("min_cluster_size");
-        arguments_consensus << "-M" << String(min_cluster_size).toQString();
+        arguments_consensus << "-M" << QString::fromStdString(String(min_cluster_size));
 
         Int verbose_level = getIntOption_("verbose");
-        if (verbose_level != 2) arguments_consensus << "-v" << String(verbose_level).toQString();
+        if (verbose_level != 2) arguments_consensus << "-v" << QString::fromStdString(String(verbose_level));
       }
       writeLogInfo_("Prepared maracluster-consensus command.");
 
@@ -458,7 +461,10 @@ protected:
       // run MaRaCluster for consensus output
       //-------------------------------------------------------------
       // MaRaCluster execution with the executable and the arguments StringList
-      TOPPBase::ExitCodes exit_code = runExternalProcess_(maracluster_executable.toQString(), arguments_consensus);
+      std::vector<std::string> args_consensus;
+      args_consensus.reserve(arguments_consensus.size());
+      for (const auto& a : arguments_consensus) args_consensus.push_back(a.toStdString());
+      TOPPBase::ExitCodes exit_code = runExternalProcess_(maracluster_executable, args_consensus);
       if (exit_code != EXECUTION_OK)
       {
         return exit_code;

@@ -990,7 +990,7 @@ protected:
     String sage_executable = getStringOption_("sage_executable");
     std::cout << sage_executable << " sage executable" << std::endl; 
     String proc_stdout, proc_stderr;
-    TOPPBase::ExitCodes exit_code = runExternalProcess_(sage_executable.toQString(), QStringList() << "--help", proc_stdout, proc_stderr, "");
+    TOPPBase::ExitCodes exit_code = runExternalProcess_(sage_executable, std::vector<std::string>{"--help"}, proc_stdout, proc_stderr, "");
     if (exit_code != EXECUTION_OK)
     {
       return exit_code;
@@ -1035,23 +1035,23 @@ protected:
 
   if ( (getStringOption_("annotate_matches").compare("true")) == 0)
   {
-    arguments << config_file.toQString() 
-              << "-f" << fasta_file.toQString() 
-              << "-o" << output_folder.toQString() 
+    arguments << QString::fromStdString((config_file))
+              << "-f" << QString::fromStdString((fasta_file))
+              << "-o" << QString::fromStdString((output_folder))
               << "--annotate-matches"
-              << "--write-pin"; 
+              << "--write-pin";
   }
   else
   {
-    arguments << config_file.toQString() 
-              << "-f" << fasta_file.toQString() 
-              << "-o" << output_folder.toQString() 
-              << "--write-pin"; 
+    arguments << QString::fromStdString((config_file))
+              << "-f" << QString::fromStdString((fasta_file))
+              << "-o" << QString::fromStdString((output_folder))
+              << "--write-pin";
   }
 
-    if (batch >= 1) arguments << "--batch-size" << String(batch).toQString();
+    if (batch >= 1) arguments << "--batch-size" << QString::fromStdString((String(batch)));
     
-    for (auto s : input_files) arguments << s.toQString();
+    for (auto s : input_files) arguments << QString::fromStdString((s));
 
     OPENMS_LOG_INFO << "Sage command line: " << sage_executable << " " << arguments.join(' ').toStdString() << std::endl;
     
@@ -1059,7 +1059,10 @@ protected:
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     // Sage execution with the executable and the arguments StringList
-    exit_code = runExternalProcess_(sage_executable.toQString(), arguments);
+    std::vector<std::string> args;
+    args.reserve(arguments.size());
+    for (const auto& a : arguments) args.push_back(a.toStdString());
+    exit_code = runExternalProcess_(sage_executable, args);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     #ifdef CHRONOSET
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << "[s]" << std::endl;

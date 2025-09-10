@@ -90,16 +90,16 @@ protected:
 
   ExitCodes main_(int argc, const char ** argv) override
   {
-    QString toppas_file = QString::fromStdString(static_cast<const std::string&>(getStringOption_("in")));
-    QString out_dir_name = QString::fromStdString(static_cast<const std::string&>(getStringOption_("out_dir")));
-    QString resource_file = QString::fromStdString(static_cast<const std::string&>(getStringOption_("resource_file")));
+    QString toppas_file = QString::fromStdString(getStringOption_("in"));
+    QString out_dir_name = QString::fromStdString(getStringOption_("out_dir"));
+    QString resource_file = QString::fromStdString(getStringOption_("resource_file"));
     int num_jobs = getIntOption_("num_jobs");
 
     QApplication a(argc, const_cast<char **>(argv), false);
 
     //set & create temporary path -- make sure its a new subdirectory, as it will be deleted later
-    QString new_tmp_dir = QString::fromStdString(static_cast<const std::string&>(File::getUniqueName()));
-    QDir qd(QString::fromStdString(static_cast<const std::string&>(File::getTempDirectory())));
+    QString new_tmp_dir = QString::fromStdString(File::getUniqueName());
+    QDir qd(QString::fromStdString(File::getTempDirectory()));
     qd.mkdir(new_tmp_dir);
     qd.cd(new_tmp_dir);
     QString tmp_path = qd.absolutePath();
@@ -142,8 +142,8 @@ protected:
     }
     else
     {
-      QFileInfo fi(QString::fromStdString(static_cast<const std::string&>(ts.getSaveFileName())));
-      out_dir_name = QDir::cleanPath(ts.getOutDir() + QDir::separator() + QString::fromStdString(static_cast<const std::string&>(String(fi.baseName().toStdString()))) + QDir::separator());
+      QFileInfo fi(QString::fromStdString(ts.getSaveFileName()));
+      out_dir_name = QDir::cleanPath(ts.getOutDir() + QDir::separator() + QString::fromStdString((String(fi.baseName().toStdString()))) + QDir::separator());
       cout << "No output directory specified. Using the user's home directory (" << out_dir_name.toStdString() << ")" << endl;
       ts.setOutDir(out_dir_name);
       QDir qd;

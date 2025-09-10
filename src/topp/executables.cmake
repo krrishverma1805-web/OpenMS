@@ -67,7 +67,6 @@ MapNormalizer
 MapRTTransformer
 MapStatistics
 MaRaClusterAdapter
-MascotAdapterOnline
 MassCalculator
 MassTraceExtractor
 MetaProSIP
@@ -187,7 +186,6 @@ list(REMOVE_ITEM TOPP_executables
   GenericWrapper
   MSGFPlusAdapter
   NovorAdapter
-  MascotAdapterOnline
   OpenNuXL
   NucleicAcidSearchEngine
   QCEmbedder
@@ -220,7 +218,6 @@ set(TOPP_executables_with_GUIlib ${TOPP_executables_with_GUIlib}
   GenericWrapper
   MSGFPlusAdapter
   NovorAdapter
-  MascotAdapterOnline
   OpenNuXL
   NucleicAcidSearchEngine
   QCEmbedder

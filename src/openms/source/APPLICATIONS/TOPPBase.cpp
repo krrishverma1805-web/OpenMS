@@ -2494,7 +2494,7 @@ namespace OpenMS
       toolInfo.citations_   = citation_dois;
 
       // this will write the actual data to disk
-      writer.store(static_cast<const std::string&>(write_file), default_params, toolInfo);
+      writer.store(write_file, default_params, toolInfo);
     }
   }
 

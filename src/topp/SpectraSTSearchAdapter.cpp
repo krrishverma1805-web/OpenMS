@@ -139,7 +139,7 @@ protected:
      String params_file = getStringOption_(TOPPSpectraSTSearchAdapter::param_params_file);
      if (! params_file.empty())
      {
-         arguments << params_file.toQString().prepend("-sF");
+         arguments << QString::fromStdString(params_file).prepend("-sF");
      }
 
      // Add library file argument, terminate if the corresponding spidx is not present
@@ -150,7 +150,7 @@ protected:
          OPENMS_LOG_ERROR << "ERROR: Index file required by spectrast not found:\n" << index_file << endl;
          return INPUT_FILE_NOT_FOUND;
      }
-     arguments << library_file.toQString().prepend("-sL");
+     arguments << QString::fromStdString(library_file).prepend("-sL");
 
      // Add Sequence Database file if exists
      String sequence_database_file  = getStringOption_(TOPPSpectraSTSearchAdapter::param_sequence_database_file);
@@ -164,8 +164,8 @@ protected:
             OPENMS_LOG_ERROR << "ERROR: Sequence database type invalid or not provided" << endl;
             return MISSING_PARAMETERS;
          }
-         arguments << sequence_database_type.toQString().prepend("-sT");
-         arguments << sequence_database_file.toQString().prepend("-sD");
+         arguments << QString::fromStdString(sequence_database_type).prepend("-sT");
+         arguments << QString::fromStdString(sequence_database_file).prepend("-sD");
      }
 
      // Set the number of threads in SpectraST
@@ -176,7 +176,7 @@ protected:
      String search_file = getStringOption_(TOPPSpectraSTSearchAdapter::param_search_file);
      if (! search_file.empty())
      {
-         arguments << search_file.toQString().prepend("-sS");
+         arguments << QString::fromStdString(search_file).prepend("-sS");
      }
 
      // Flags
@@ -187,7 +187,7 @@ protected:
      String user_mod_file = getStringOption_(TOPPSpectraSTSearchAdapter::param_user_mod_file);
      if (! user_mod_file.empty())
      {
-        arguments << user_mod_file.toQString().prepend("-M");
+        arguments << QString::fromStdString(user_mod_file).prepend("-M");
      }
 
      // Input and output files, errors if lists are not equally long
@@ -233,8 +233,8 @@ protected:
      }
 
      String temp_dir = File::getTempDirectory();
-     arguments << outputFormat.toQString().prepend("-sE");
-     arguments << temp_dir.toQString().prepend("-sO");
+     arguments << QString::fromStdString(outputFormat).prepend("-sE");
+     arguments << QString::fromStdString(temp_dir).prepend("-sO");
 
      // Check whether input files agree in format
      String first_input_file = spectra_files[0];
@@ -267,7 +267,7 @@ protected:
                        << input_file << " is not " << inputFormat << endl;
         return ILLEGAL_PARAMETERS;
       }
-      arguments << input_file.toQString();
+      arguments << QString::fromStdString(input_file);
      }
 
      // Writing the final SpectraST command to the DEBUG LOG
@@ -280,18 +280,21 @@ protected:
      OPENMS_LOG_DEBUG << ss.str() << endl;
 
      // Run SpectraST
-     TOPPBase::ExitCodes exit_code = runExternalProcess_(executable.toQString(), arguments);
+     std::vector<std::string> args;
+     args.reserve(arguments.size());
+     for (const auto& a : arguments) args.push_back(a.toStdString());
+     TOPPBase::ExitCodes exit_code = runExternalProcess_(executable, args);
      if (exit_code != EXECUTION_OK)
      {
        return exit_code;
      }
 
      // Copy the output files to the specified location
-     QDir temp_dir_qt = QDir(temp_dir.toQString());
+     QDir temp_dir_qt = QDir(QString::fromStdString(temp_dir));
      for (size_t i = 0; i < spectra_files.size(); i++)
      {
         String spectra_file = spectra_files[i];
-        QString actual_path = temp_dir_qt.filePath(FileHandler::stripExtension(File::basename(spectra_file)).toQString().append(".").append(outputFormat.toQString()));
+        QString actual_path = temp_dir_qt.filePath(QString::fromStdString(FileHandler::stripExtension(File::basename(spectra_file))).append(".").append(QString::fromStdString(outputFormat)));
 
         std::ifstream ifs(actual_path.toStdString().c_str(), std::ios::in | std::ios::binary);
         std::ofstream ofs(output_files[i].c_str(), std::ios::out | std::ios::binary);

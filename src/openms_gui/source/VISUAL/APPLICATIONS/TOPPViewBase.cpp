@@ -2509,7 +2509,7 @@ namespace OpenMS
   void TOPPViewBase::fileChanged_(const String& filename)
   {
     // check if file has been deleted
-    if (!QFileInfo(QString::fromStdString(static_cast<const std::string&>(filename))).exists())
+    if (!QFileInfo(QString::fromStdString(filename)).exists())
     {
       watcher_->removeFile(filename);
       return;

@@ -3,7 +3,6 @@ set(directory include/OpenMS/FORMAT)
 
 ### list all MOC filenames of the directory here
 set(sources_list
-MascotRemoteQuery.h
 )
 
 ### add path to the filenames
@@ -58,7 +57,6 @@ MSPFile.h
 MSPGenericFile.h
 MSstatsFile.h
 MascotGenericFile.h
-MascotRemoteQuery.h
 MascotXMLFile.h
 MsInspectFile.h
 MzDataFile.h

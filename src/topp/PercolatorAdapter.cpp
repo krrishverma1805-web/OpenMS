@@ -784,32 +784,32 @@ protected:
     {    
       if (peptide_level_fdrs)
       { 
-        arguments << "-r" << pout_target_file_peptides.toQString();
-        arguments << "-B" << pout_decoy_file_peptides.toQString();
+        arguments << "-r" << QString::fromStdString(pout_target_file_peptides);
+        arguments << "-B" << QString::fromStdString(pout_decoy_file_peptides);
       }
       else
       {
         arguments << "-U";
       }
-      arguments << "-m" << pout_target_file.toQString();
-      arguments << "-M" << pout_decoy_file.toQString();
+      arguments << "-m" << QString::fromStdString(pout_target_file);
+      arguments << "-M" << QString::fromStdString(pout_decoy_file);
       
       if (protein_level_fdrs)
       {
-        arguments << "-l" << pout_target_file_proteins.toQString();
-        arguments << "-L" << pout_decoy_file_proteins.toQString();
+        arguments << "-l" << QString::fromStdString(pout_target_file_proteins);
+        arguments << "-L" << QString::fromStdString(pout_decoy_file_proteins);
         
         String fasta_file = getStringOption_("fasta");
         if (fasta_file.empty())
         {
           fasta_file = "auto";
         }
-        arguments << "-f" << fasta_file.toQString();
+        arguments << "-f" << QString::fromStdString(fasta_file);
 
-        arguments << "-z" << String(enz_str).toQString();
+        arguments << "-z" << QString::fromStdString(String(enz_str));
 
         String decoy_pattern = getStringOption_("decoy_pattern");
-        if (decoy_pattern != "random") arguments << "-P" << decoy_pattern.toQString();
+        if (decoy_pattern != "random") arguments << "-P" << QString::fromStdString(decoy_pattern);
       }
       
       int cv_threads = getIntOption_("threads"); // pass-through of OpenMS thread parameter
@@ -821,7 +821,7 @@ protected:
         // if e.g. the OpenMS version and this adapter is updated.
         if (cv_threads > 3 || getFlag_("force"))
         { 
-          arguments << "--num-threads" << String(cv_threads).toQString();
+          arguments << "--num-threads" << QString::fromStdString(String(cv_threads));
         }
       }
       
@@ -829,31 +829,31 @@ protected:
       double cneg = getDoubleOption_("cneg");
       if (cpos != 0.0)
       {
-        arguments << "-p" << String(cpos).toQString();
+        arguments << "-p" << QString::fromStdString(String(cpos));
       }
       if (cneg != 0.0)
       {
-        arguments << "-n" << String(cneg).toQString();
+        arguments << "-n" << QString::fromStdString(String(cneg));
       }
       double train_FDR = getDoubleOption_("trainFDR");
       double test_FDR = getDoubleOption_("testFDR");
       if (train_FDR != 0.01)
       {
-        arguments << "-F" << String(train_FDR).toQString();
+        arguments << "-F" << QString::fromStdString(String(train_FDR));
       }
       if (test_FDR != 0.01)
       {
-        arguments << "-t" << String(test_FDR).toQString();
+        arguments << "-t" << QString::fromStdString(String(test_FDR));
       }
       Int max_iter = getIntOption_("maxiter");
       if (max_iter != 10)
       {
-        arguments << "-i" << String(max_iter).toQString();
+        arguments << "-i" << QString::fromStdString(String(max_iter));
       }
       Int subset_max_train = getIntOption_("subset_max_train");
       if (subset_max_train > 0)
       {
-        arguments << "-N" << String(subset_max_train).toQString();
+        arguments << "-N" << QString::fromStdString(String(subset_max_train));
       }
       if (getFlag_("quick_validation"))
       {
@@ -874,27 +874,27 @@ protected:
       Int nested_xval_bins = getIntOption_("nested_xval_bins");
       if (nested_xval_bins > 1)
       {
-        arguments << "--nested-xval-bins" << String(nested_xval_bins).toQString();
+        arguments << "--nested-xval-bins" << QString::fromStdString(String(nested_xval_bins));
       }
       String weights_file = getStringOption_("weights");
       String init_weights_file = getStringOption_("init_weights");
       String default_search_direction = getStringOption_("default_direction");
       if (!weights_file.empty())
       {
-        arguments << "-w" << weights_file.toQString();
+        arguments << "-w" << QString::fromStdString(weights_file);
       }
       if (!init_weights_file.empty())
       {
-        arguments << "-W" << init_weights_file.toQString();
+        arguments << "-W" << QString::fromStdString(init_weights_file);
       }
       if (!default_search_direction.empty())
       {
-        arguments << "-V" << default_search_direction.toQString();
+        arguments << "-V" << QString::fromStdString(default_search_direction);
       }
       Int verbose_level = getIntOption_("verbose");
       if (verbose_level != 2)
       {
-        arguments << "-v" << String(verbose_level).toQString();
+        arguments << "-v" << QString::fromStdString(String(verbose_level));
       }
       if (getFlag_("unitnorm"))
       {
@@ -911,7 +911,7 @@ protected:
       Int seed = getIntOption_("seed");
       if (seed != 1)
       {
-        arguments << "-S" << String(seed).toQString();
+        arguments << "-S" << QString::fromStdString(String(seed));
       }
       if (getFlag_("klammer"))
       {
@@ -919,9 +919,9 @@ protected:
       }
       if (description_of_correct != 0)
       {
-        arguments << "-D" << String(description_of_correct).toQString();
+        arguments << "-D" << QString::fromStdString(String(description_of_correct));
       }
-      arguments << pin_file.toQString();
+      arguments << QString::fromStdString(pin_file);
     }
     writeLogInfo_("Prepared percolator input.");
 
@@ -929,7 +929,9 @@ protected:
     // run percolator
     //-------------------------------------------------------------
     // Percolator execution with the executable and the arguments StringList
-    TOPPBase::ExitCodes exit_code = runExternalProcess_(percolator_executable.toQString(), arguments);
+    std::vector<std::string> args;
+    for (auto& a : arguments) args.push_back(a.toStdString());
+    TOPPBase::ExitCodes exit_code = runExternalProcess_(percolator_executable, args);
     if (exit_code != EXECUTION_OK)
     {
       return exit_code;
@@ -954,11 +956,11 @@ protected:
       // copy file in tmp folder to output
       if (!pout_target.empty())
       {
-        QFile::copy(pout_target_file_peptides.toQString(), pout_target.toQString());
+        File::copy(pout_target_file_peptides, pout_target);
       }
       if (!pout_decoy.empty())
       {
-        QFile::copy(pout_decoy_file_peptides.toQString(), pout_decoy.toQString());
+        File::copy(pout_decoy_file_peptides, pout_decoy);
       }
     }
     else
@@ -969,11 +971,11 @@ protected:
       // copy file in tmp folder to output
       if (!pout_target.empty())
       {
-        QFile::copy(pout_target_file.toQString(), pout_target.toQString());
+        QFile::copy(QString::fromStdString(pout_target_file), QString::fromStdString(pout_target));
       }
       if (!pout_decoy.empty())
       {
-        QFile::copy(pout_decoy_file.toQString(), pout_decoy.toQString());
+        QFile::copy(QString::fromStdString(pout_decoy_file), QString::fromStdString(pout_decoy));
       }
     }
     
@@ -986,11 +988,11 @@ protected:
       // copy file in tmp folder to output filename
       if (!pout_target_proteins.empty())
       {
-        QFile::copy(pout_target_file_proteins.toQString(), pout_target_proteins.toQString());
+        QFile::copy(QString::fromStdString(pout_target_file_proteins), QString::fromStdString(pout_target_proteins));
       }
       if (!pout_decoy_proteins.empty())
       {
-        QFile::copy(pout_target_file_proteins.toQString(), pout_decoy_proteins.toQString());
+        QFile::copy(QString::fromStdString(pout_target_file_proteins), QString::fromStdString(pout_decoy_proteins));
       }
     }
 

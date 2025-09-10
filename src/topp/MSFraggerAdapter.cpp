@@ -415,12 +415,12 @@ protected:
           std::cerr << "No executable for MSFragger could be found (also not in MSFRAGGER_PATH)!";
           return ExitCodes::EXTERNAL_PROGRAM_NOTFOUND;
         }
-        this->exe = qmsfragger_path;
+        this->exe = qmsfragger_path.toStdString();
       }
 
       // input, output, database name
       const String database = File::absolutePath(this->getStringOption_(TOPPMSFraggerAdapter::database)); // the working dir will be a TMP-dir, so we need absolute paths
-      input_file = (this->getStringOption_(TOPPMSFraggerAdapter::in)).toQString();
+      input_file = QString::fromStdString(this->getStringOption_(TOPPMSFraggerAdapter::in));
       output_file = this->getStringOption_(TOPPMSFraggerAdapter::out);
       optional_output_file = this->getStringOption_(TOPPMSFraggerAdapter::opt_out);
 
@@ -839,8 +839,8 @@ protected:
 
     QStringList process_params; // the actual process is Java, not MSFragger
     process_params << "-Xmx" + QString::number(this->getIntOption_(java_heapmemory)) + "m"
-        << "-jar" << this->exe.toQString()
-        << this->parameter_file_path.toQString()
+        << "-jar" << QString::fromStdString(this->exe)
+        << QString::fromStdString(this->parameter_file_path)
         << input_file;
 
     if (this->debug_level_ >= TOPPMSFraggerAdapter::LOG_LEVEL_VERBOSE)
@@ -849,19 +849,22 @@ protected:
       String command_line = this->java_exe;
       for (const auto& process_param : process_params)
       {
-        command_line += (" " + process_param);
+        command_line += (" " + process_param.toStdString());
       }
       writeDebug_(command_line, TOPPMSFraggerAdapter::LOG_LEVEL_VERBOSE);
     }
 
-    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_exe.toQString(), process_params, working_directory.getPath().toQString());
+    std::vector<std::string> args;
+    args.reserve(process_params.size());
+    for (const auto& a : process_params) args.push_back(a.toStdString());
+    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_exe, args, working_directory.getPath());
     if (exit_code != EXECUTION_OK)
     {
       return exit_code;
     }
 
     // convert from pepXML to idXML
-    String pepxmlfile = FileHandler::swapExtension(input_file, FileTypes::PEPXML);
+    String pepxmlfile = FileHandler::swapExtension(input_file.toStdString(), FileTypes::PEPXML);
     PeptideIdentificationList peptide_identifications;
     std::vector<ProteinIdentification> protein_identifications;
     PepXMLFile().load(pepxmlfile, protein_identifications, peptide_identifications);
@@ -894,7 +897,7 @@ protected:
     }
     else
     { // rename the pepXML file to the opt_out
-      File::rename(pepxmlfile.toQString(), optional_output_file.toQString()); 
+      File::rename(pepxmlfile, optional_output_file);
     }
 
     // remove ".pepindex" database file

@@ -175,9 +175,9 @@ protected:
     const String java_executable = getStringOption_("java_executable");
     QString java_memory = "-Xmx" + QString::number(getIntOption_("java_memory")) + "m";
 
-    QString executable = getStringOption_("executable").toQString();   
+    String executable = getStringOption_("executable");
 
-    if (executable.isEmpty())
+    if (executable.empty())
     {
       const char* novor_path_env = getenv("NOVOR_PATH");
       if (novor_path_env == nullptr || strlen(novor_path_env) == 0)
@@ -189,11 +189,11 @@ protected:
     }
 
     // Normalize file path
-    QFileInfo file_info(executable);
-    executable = file_info.canonicalFilePath();
+    QFileInfo file_info(QString::fromStdString(executable));
+    executable = file_info.canonicalFilePath().toStdString();
 
     writeLogInfo_("Executable is: " + executable);
-    const QString & path_to_executable = File::path(executable).toQString();
+    const QString & path_to_executable = QString::fromStdString(File::path(executable));
     
     //-------------------------------------------------------------
     // reading input
@@ -250,15 +250,17 @@ protected:
 
     QStringList process_params;
     process_params << java_memory
-                   << "-jar" << executable
+                   << "-jar" << QString::fromStdString(executable)
                    << "-f" 
-                   << "-o" << tmp_out.toQString()               
-                   << "-p" << tmp_param.toQString()
-                   << tmp_mgf.toQString();
+                   << "-o" << QString::fromStdString(tmp_out)
+                   << "-p" << QString::fromStdString(tmp_param)
+                   << QString::fromStdString(tmp_mgf);
 
 
     // print novor command line
-    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable.toQString(), process_params, path_to_executable);
+    std::vector<std::string> args;
+    for (auto a : process_params) args.push_back(a.toStdString());
+    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable, args, path_to_executable.toStdString());
     if (exit_code != EXECUTION_OK)
     {
       return exit_code;
@@ -315,7 +317,7 @@ protected:
       ph.setMetaValue("pepMass(denovo)", sl[5].toDouble());
       ph.setMetaValue("err(data-denovo)", sl[6].toDouble());
       ph.setMetaValue("ppm(1e6*err/(mz*z))", sl[7].toDouble());
-      ph.setMetaValue("aaScore", sl[10].toQString());
+      ph.setMetaValue("aaScore", sl[10]);
 
       pi.getHits().push_back(std::move(ph));   
       peptide_ids.push_back(std::move(pi));

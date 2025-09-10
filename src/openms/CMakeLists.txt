@@ -53,10 +53,6 @@ include(${PROJECT_SOURCE_DIR}/configh.cmake)
 # big include file for headers and cpp files, that fills the OpenMS_sources variable
 include (${PROJECT_SOURCE_DIR}/includes.cmake)
 
-# Disable Qt automoc for MascotRemoteQuery header in OpenMS core to avoid Qt build dependency
-# The header remains available for source compatibility but won't trigger MOC/moc_* generation.
-set_source_files_properties(${PROJECT_SOURCE_DIR}/include/OpenMS/FORMAT/MascotRemoteQuery.h PROPERTIES SKIP_AUTOMOC ON)
-
 #------------------------------------------------------------------------------
 # all the dependency libraries are linked into libOpenMS.so
 set(OPENMS_DEP_LIBRARIES Evergreen LibSVM::LibSVM XercesC::XercesC Eigen3::Eigen)

@@ -28,7 +28,7 @@ namespace OpenMS
   TOPPASWidget::TOPPASWidget(const Param & /*preferences*/, QWidget * parent, const String & tmp_path) :
     QGraphicsView(parent),
     EnhancedTabBarWidgetInterface(),
-    scene_(new TOPPASScene(this, QString::fromStdString(static_cast<const std::string&>(tmp_path))))
+    scene_(new TOPPASScene(this, QString::fromStdString(tmp_path)))
   {
     setAttribute(Qt::WA_DeleteOnClose);
     setAttribute(Qt::WA_AlwaysShowToolTips);

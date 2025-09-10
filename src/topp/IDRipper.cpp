@@ -97,7 +97,7 @@ protected:
     bool numeric_filenames = getFlag_("numeric_filenames");
     bool split_ident_runs = getFlag_("split_ident_runs");
 
-    String output_directory =QString::fromStdString(static_cast&lt;const std::string&amp;&gt;( QFileInfo(out_dir))).absoluteFilePath().toStdString();
+    String output_directory = String(QFileInfo(QString::fromStdString(out_dir)).absoluteFilePath().toStdString());
 
     //-------------------------------------------------------------
     // calculations
@@ -128,24 +128,24 @@ protected:
       const IDRipper::RipFileIdentifier& rfi = it->first;
       const IDRipper::RipFileContent& rfc = it->second;
 
-      QString output =QString::fromStdString(static_cast&lt;const std::string&amp;&gt;( output_directory));
+      QString output = QString::fromStdString(output_directory);
 
       String out_fname;
       if (numeric_filenames)
       {
         String s_ident_run_idx = split_ident_runs ? '_' + String(rfi.ident_run_idx) : "";
         String s_file_origin_idx = '_' + String(rfi.file_origin_idx);
-        out_fname =QString::fromStdString(static_cast&lt;const std::string&amp;&gt;( QFileInfo(file_name))).completeBaseName().toStdString() + s_ident_run_idx + s_file_origin_idx + ".idXML";
+        out_fname = String(QFileInfo(QString::fromStdString(file_name)).completeBaseName().toStdString()) + s_ident_run_idx + s_file_origin_idx + ".idXML";
       }
       else
       {
-        out_fname =QString::fromStdString(static_cast&lt;const std::string&amp;&gt;( QFileInfo(rfi.out_basename))).completeBaseName().toStdString() + ".idXML";
+        out_fname = String(QFileInfo(QString::fromStdString(rfi.out_basename)).completeBaseName().toStdString()) + ".idXML";
       }
 
-      String out =QString::fromStdString(static_cast&lt;const std::string&amp;&gt;( QDir::toNativeSeparators(output.append(QString("/")).append(out_fname)))).toStdString();
-      OPENMS_LOG_INFO << "Storing file: '" << out << "'." << std::endl;QString::fromStdString(static_cast&lt;const std::string&amp;&gt;(
+      String out = String(QDir::toNativeSeparators(output.append(QString("/")).append(QString::fromStdString(out_fname))).toStdString());
+      OPENMS_LOG_INFO << "Storing file: '" << out << "'." << std::endl;
 
-      QDir dir(output_directory)));
+      QDir dir(QString::fromStdString(output_directory));
       FileHandler().storeIdentifications(out, rfc.prot_idents, rfc.pep_idents, {FileTypes::IDXML});
     }
     return EXECUTION_OK;

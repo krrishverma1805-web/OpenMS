@@ -194,7 +194,7 @@ namespace OpenMS
         {
           OpenMS::String last = OpenMS::String(files.back().toStdString());
           OpenMS::String last_path = File::path(last);
-          setCWD(QString::fromStdString(static_cast<const std::string&>(last_path))); // emit the signal
+          setCWD(QString::fromStdString(last_path)); // emit the signal
         }
       }
     }

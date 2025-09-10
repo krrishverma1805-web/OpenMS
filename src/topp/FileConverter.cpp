@@ -279,12 +279,12 @@ protected:
       }
       else
       { // use e.g., mono
-        arguments << QString::fromStdString(static_cast&lt;const std::string&amp;&gt;(getStringOption_("RawToMzML:ThermoRaw_executable")));
+        arguments << QString::fromStdString((getStringOption_("RawToMzML:ThermoRaw_executable")));
       }
 #else
       // default on Mac, Linux: use mono
       net_executable = net_executable.empty() ? "mono" : net_executable;
-      arguments << QString::fromStdString(static_cast&lt;const std::string&amp;&gt;(getStringOption_("RawToMzML:ThermoRaw_executable")));
+      arguments << QString::fromStdString((getStringOption_("RawToMzML:ThermoRaw_executable")));
 #endif
       arguments << ("--input=" + in).c_str()
                 << ("--output=" + out).c_str()
@@ -302,7 +302,14 @@ protected:
       {
         arguments << "--noiseData";
       }
-      return QString::fromStdString(static_cast&lt;const std::string&amp;&gt;(runExternalProcess_(net_executable)), arguments);
+      std::vector<std::string> args;
+      args.reserve(arguments.size());
+      for (const auto& a : arguments) args.push_back(a.toStdString());
+      TOPPBase::ExitCodes exit_code = runExternalProcess_(net_executable, args);
+      if (exit_code != EXECUTION_OK)
+      {
+        return exit_code;
+      }
     }
     else if (in_type == FileTypes::EDTA)
     {

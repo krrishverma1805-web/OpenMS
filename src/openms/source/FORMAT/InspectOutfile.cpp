@@ -1128,7 +1128,7 @@ namespace OpenMS
     // Match e.g. "InsPecT version 20060907" (older InsPecT had typo "vesrion")
     static const std::regex rx(R"(InsPecT (version|vesrion) (\d+))");
     std::smatch m;
-    const std::string s = static_cast<const std::string&>(cmd_output);
+    const std::string s = cmd_output;
     if (!std::regex_search(s, m, rx) || m.size() < 3)
     {
       return false;

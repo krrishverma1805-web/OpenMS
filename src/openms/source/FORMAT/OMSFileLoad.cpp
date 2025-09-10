@@ -1152,11 +1152,11 @@ namespace OpenMS::Internal
       {
         order_by = "parent_id, processing_step_order, score_type_id";
       }
-      else if (auto pos = export_order_by_.find(static_cast<const std::string&>(table)); pos != export_order_by_.end())
+      else if (auto pos = export_order_by_.find(table); pos != export_order_by_.end())
       {
         order_by = pos->second;
       }
-      json_data[static_cast<const std::string&>(table)] = exportTableToJSON_(static_cast<const std::string&>(table), order_by);
+      json_data[table] = exportTableToJSON_(table, order_by);
     }
 
     output << json_data.dump();

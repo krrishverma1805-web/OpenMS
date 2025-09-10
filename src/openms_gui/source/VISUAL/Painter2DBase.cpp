@@ -107,7 +107,7 @@ namespace OpenMS
         }
         if (id.getHits().size() > 1)
           sequence += "...";
-        painter->drawText(pos.x() + 10, pos.y() + 10, QString::fromStdString(static_cast<const std::string&>(sequence)));
+        painter->drawText(pos.x() + 10, pos.y() + 10, QString::fromStdString(sequence));
       }
     }
   }
@@ -573,7 +573,7 @@ namespace OpenMS
         QColor color;
         if (f.metaValueExists(5))
         {
-          color = QColor(QString::fromStdString(static_cast<const std::string&>(f.getMetaValue(5).toString())));
+          color = QColor(QString::fromStdString(f.getMetaValue(5).toString()));
         }
         else
         {
@@ -596,13 +596,13 @@ namespace OpenMS
             Size maxHits = (layer_->label == LayerDataBase::L_ID_ALL) ? f.getPeptideIdentifications()[0].getHits().size() : 1;
             for (Size j = 0; j < maxHits; ++j)
             {
-              painter->drawText(pos.x() + 10, pos.y() + 10 + int(j) * line_spacing, QString::fromStdString(static_cast<const std::string&>(f.getPeptideIdentifications()[0].getHits()[j].getSequence().toString())));
+              painter->drawText(pos.x() + 10, pos.y() + 10 + int(j) * line_spacing, QString::fromStdString(f.getPeptideIdentifications()[0].getHits()[j].getSequence().toString()));
             }
           }
           else if (layer_->label == LayerDataBase::L_META_LABEL)
           {
             painter->setPen(Qt::darkBlue);
-            painter->drawText(pos.x() + 10, pos.y() + 10, QString::fromStdString(static_cast<const std::string&>(f.getMetaValue(3).toString())));
+            painter->drawText(pos.x() + 10, pos.y() + 10, QString::fromStdString(f.getMetaValue(3).toString()));
           }
         }
       }
@@ -667,7 +667,7 @@ namespace OpenMS
         QColor color;
         if (cf.metaValueExists(5))
         {
-          color = QColor(QString::fromStdString(static_cast<const std::string&>(cf.getMetaValue(5).toString())));
+          color = QColor(QString::fromStdString(cf.getMetaValue(5).toString()));
         }
         else
         {

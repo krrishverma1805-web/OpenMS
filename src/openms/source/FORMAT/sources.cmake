@@ -45,7 +45,6 @@ MSPFile.cpp
 MSPGenericFile.cpp
 MSstatsFile.cpp
 MascotGenericFile.cpp
-# MascotRemoteQuery.cpp  -- disabled in core to remove Qt dependency (to be ported to cpp-httplib)
 MascotXMLFile.cpp
 MsInspectFile.cpp
 MzDataFile.cpp

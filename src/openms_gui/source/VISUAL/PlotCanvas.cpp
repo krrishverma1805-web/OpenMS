@@ -406,7 +406,7 @@ namespace OpenMS
     }
     else 
     {
-      new_layer->setName(OpenMS::String(QFileInfo(QString::fromStdString(static_cast<const std::string&>(filename))).completeBaseName().toStdString()));
+      new_layer->setName(OpenMS::String(QFileInfo(QString::fromStdString(filename)).completeBaseName().toStdString()));
     }
   }
 
@@ -529,7 +529,7 @@ namespace OpenMS
     getLayer(i).setName(name);
     if (i == 0 && spectrum_widget_)
     {
-      spectrum_widget_->setWindowTitle(QString::fromStdString(static_cast<const std::string&>(name)));
+      spectrum_widget_->setWindowTitle(QString::fromStdString(name));
     }
   }
 

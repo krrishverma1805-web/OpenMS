@@ -57,7 +57,7 @@ namespace OpenMS
 
     // customize look and feel via Qt style sheets
     String filename = File::find("GUISTYLE/qtStyleSheet.qss");
-    QFile fh(QString::fromStdString(static_cast<const std::string&>(filename)));
+    QFile fh(QString::fromStdString(filename));
     fh.open(QFile::ReadOnly);
     QString style_string = QLatin1String(fh.readAll());
     //std::cerr << "Stylesheet content: " << style_string.toStdString() << "\n\n\n";

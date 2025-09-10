@@ -199,7 +199,6 @@ set(format_executables_list
   MSPFile_test
   MSPGenericFile_test
   MascotGenericFile_test
-  # MascotRemoteQuery_test (disabled: Qt dependency)
   MascotXMLFile_test
   #MSDataWritingConsumer_test
   MRMFeaturePickerFile_test

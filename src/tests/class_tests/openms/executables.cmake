@@ -287,6 +287,7 @@ set(math_executables_list
   GaussFitter_test
   GumbelDistributionFitter_test
   GridSearch_test
+  CrossValidation_test
   Histogram_test
   LinearInterpolation_test
   LinearRegression_test

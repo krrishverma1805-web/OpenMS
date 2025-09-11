@@ -11,20 +11,22 @@
 #include <OpenMS/DATASTRUCTURES/String.h>
 
 #include <algorithm>
-#include <utility>
-#include <thread>
-#include <chrono>
-#include <iostream>
 #include <sstream>
+#include <thread>
+#include <utility>
+#include <vector>
+#include <string>
 
 #ifdef _WIN32
-#include <windows.h>
-#include <io.h>
+  #include <boost/process.hpp>
+  namespace bp = boost::process;
 #else
-#include <unistd.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <fcntl.h>
+  #include <unistd.h>
+  #include <sys/wait.h>
+  #include <sys/types.h>
+  #include <sys/select.h>
+  #include <fcntl.h>
+  #include <signal.h>
 #endif
 
 namespace OpenMS
@@ -38,13 +40,11 @@ namespace OpenMS
 
   ExternalProcess::ExternalProcess(std::function<void(const String&)> callbackStdOut, std::function<void(const String&)> callbackStdErr)
     : callbackStdOut_(std::move(callbackStdOut)),
-    callbackStdErr_(std::move(callbackStdErr))
+      callbackStdErr_(std::move(callbackStdErr))
   {
   }
 
-  ExternalProcess::~ExternalProcess()
-  {
-  }
+  ExternalProcess::~ExternalProcess() = default;
 
   /// re-wire the callbacks used using run()
   void ExternalProcess::setCallbacks(std::function<void(const String&)> callbackStdOut, std::function<void(const String&)> callbackStdErr)
@@ -53,49 +53,105 @@ namespace OpenMS
     callbackStdErr_ = std::move(callbackStdErr);
   }
 
+  static inline std::string join_cmd_(const std::string& exe, const std::vector<std::string>& args)
+  {
+    std::ostringstream oss;
+    oss << exe;
+    for (const auto& a : args)
+    {
+      oss << " " << a;
+    }
+    return oss.str();
+  }
 
-  ExternalProcess::RETURNSTATE ExternalProcess::run(const std::string& exe, const std::vector<std::string>& args, const std::string& working_dir, const bool verbose, IO_MODE io_mode)
+  ExternalProcess::RETURNSTATE ExternalProcess::run(const std::string& exe,
+                                                    const std::vector<std::string>& args,
+                                                    const std::string& working_dir,
+                                                    const bool verbose,
+                                                    IO_MODE io_mode)
   {
     String error_msg;
     return run(exe, args, working_dir, verbose, error_msg, io_mode);
   }
 
-  ExternalProcess::RETURNSTATE ExternalProcess::run(const std::string& exe, const std::vector<std::string>& args, const std::string& working_dir, const bool verbose, String& error_msg, IO_MODE io_mode)
+  ExternalProcess::RETURNSTATE ExternalProcess::run(const std::string& exe,
+                                                    const std::vector<std::string>& args,
+                                                    const std::string& working_dir,
+                                                    const bool verbose,
+                                                    String& error_msg,
+                                                    IO_MODE io_mode)
   {
     error_msg.clear();
 
     if (verbose)
     {
-      String cmd_line = exe;
-      for (const auto& arg : args)
-      {
-        cmd_line += " " + arg;
-      }
-      callbackStdOut_("Running: " + cmd_line + '\n');
+      callbackStdOut_(String("Running: ") + String(join_cmd_(exe, args)) + String("\n"));
     }
 
 #ifdef _WIN32
-    // Windows implementation using CreateProcess
-    STARTUPINFOA si;
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
+    // Windows implementation using boost::process
+    bp::environment env = boost::this_process::environment();
+    const bool read_io = (io_mode == IO_MODE::READ_ONLY || io_mode == IO_MODE::READ_WRITE);
 
-    // Build command line
-    std::string cmdline = exe;
-    for (const auto& arg : args)
+    bp::ipstream child_out;
+    bp::ipstream child_err;
+    std::unique_ptr<bp::child> child_ptr;
+
+    try
     {
-      cmdline += " \"" + arg + "\"";
+      if (working_dir.empty())
+      {
+        if (read_io)
+        {
+          child_ptr = std::make_unique<bp::child>(
+            exe,
+            bp::args(args),
+            env,
+            bp::std_out > child_out,
+            bp::std_err > child_err
+          );
+        }
+        else
+        {
+          child_ptr = std::make_unique<bp::child>(
+            exe,
+            bp::args(args),
+            env,
+            bp::std_out > bp::null,
+            bp::std_err > bp::null
+          );
+        }
+      }
+      else
+      {
+        if (read_io)
+        {
+          child_ptr = std::make_unique<bp::child>(
+            exe,
+            bp::args(args),
+            env,
+            bp::start_dir = working_dir,
+            bp::std_out > child_out,
+            bp::std_err > child_err
+          );
+        }
+        else
+        {
+          child_ptr = std::make_unique<bp::child>(
+            exe,
+            bp::args(args),
+            env,
+            bp::start_dir = working_dir,
+            bp::std_out > bp::null,
+            bp::std_err > bp::null
+          );
+        }
+      }
     }
-
-    // Set working directory
-    const char* workdir_ptr = working_dir.empty() ? nullptr : working_dir.c_str();
-
-    // Create process
-    if (!CreateProcessA(nullptr, const_cast<char*>(cmdline.c_str()), nullptr, nullptr, FALSE, 0, nullptr, workdir_ptr, &si, &pi))
+    catch (const bp::process_error& /*e*/)
     {
-      error_msg = "Process '" + String(exe) + "' failed to start. Error code: " + String(GetLastError());
+      // Failed to start process at all (equivalent to QProcess::FailedToStart)
+      error_msg = "Process '" + String(exe) + "' failed to start. Does it exist? Is it executable?";
       if (verbose)
       {
         callbackStdErr_(error_msg + '\n');
@@ -103,195 +159,275 @@ namespace OpenMS
       return RETURNSTATE::FAILED_TO_START;
     }
 
-    // Wait for process to complete
-    WaitForSingleObject(pi.hProcess, INFINITE);
+    bp::child& c = *child_ptr;
 
-    DWORD exit_code;
-    GetExitCodeProcess(pi.hProcess, &exit_code);
+    std::thread t_out;
+    std::thread t_err;
 
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
+    if (read_io)
+    {
+      t_out = std::thread([this, &child_out]()
+      {
+        std::string line;
+        while (std::getline(child_out, line))
+        {
+          callbackStdOut_(String(line) + '\n');
+        }
+        if (child_out.good())
+        {
+          std::ostringstream oss;
+          oss << child_out.rdbuf();
+          auto rest = oss.str();
+          if (!rest.empty()) callbackStdOut_(String(rest));
+        }
+      });
+
+      t_err = std::thread([this, &child_err]()
+      {
+        std::string line;
+        while (std::getline(child_err, line))
+        {
+          callbackStdErr_(String(line) + '\n');
+        }
+        if (child_err.good())
+        {
+          std::ostringstream oss;
+          oss << child_err.rdbuf();
+          auto rest = oss.str();
+          if (!rest.empty()) callbackStdErr_(String(rest));
+        }
+      });
+    }
+
+    c.wait();
+
+    if (t_out.joinable()) t_out.join();
+    if (t_err.joinable()) t_err.join();
+
+    int exit_code = c.exit_code();
 
     if (exit_code != 0)
     {
-      error_msg = "Process '" + String(exe) + "' did not finish successfully (exit code: " + String(exit_code) + "). Please check the log.";
-      if (verbose)
+      // Map common 127 to FAILED_TO_START; otherwise NONZERO_EXIT
+      if (exit_code == 127)
       {
-        callbackStdErr_(error_msg + '\n');
+        error_msg = "Process '" + String(exe) + "' failed to start (exit code 127). Does it exist? Is it executable?";
+        if (verbose) { callbackStdErr_(error_msg + '\n'); }
+        return RETURNSTATE::FAILED_TO_START;
       }
+      error_msg = "Process '" + String(exe) + "' did not finish successfully (exit code: " + String(exit_code) + "). Please check the log.";
+      if (verbose) { callbackStdErr_(error_msg + '\n'); }
       return RETURNSTATE::NONZERO_EXIT;
     }
 
+    if (verbose) { callbackStdOut_("Executed '" + String(exe) + "' successfully!\n"); }
+    return RETURNSTATE::SUCCESS;
+
 #else
-    // Unix implementation using fork/exec
-    int pipefd_stdout[2], pipefd_stderr[2];
-    
-    if (io_mode != IO_MODE::NO_IO && io_mode != IO_MODE::WRITE_ONLY)
+    // POSIX implementation using fork/exec and pipes (no boost link requirements)
+    const bool want_read = (io_mode == IO_MODE::READ_ONLY || io_mode == IO_MODE::READ_WRITE);
+
+    int pipe_out[2] = {-1, -1};
+    int pipe_err[2] = {-1, -1};
+
+    if (want_read)
     {
-      if (pipe(pipefd_stdout) == -1 || pipe(pipefd_stderr) == -1)
+      if (pipe(pipe_out) == -1 || pipe(pipe_err) == -1)
       {
         error_msg = "Failed to create pipes for process communication";
-        if (verbose)
-        {
-          callbackStdErr_(error_msg + '\n');
-        }
+        if (verbose) { callbackStdErr_(error_msg + '\n'); }
+        // cleanup
+        if (pipe_out[0] != -1) close(pipe_out[0]);
+        if (pipe_out[1] != -1) close(pipe_out[1]);
+        if (pipe_err[0] != -1) close(pipe_err[0]);
+        if (pipe_err[1] != -1) close(pipe_err[1]);
         return RETURNSTATE::FAILED_TO_START;
       }
+      // set non-blocking for better select/read behavior
+      fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);
+      fcntl(pipe_err[0], F_SETFL, O_NONBLOCK);
     }
 
     pid_t pid = fork();
     if (pid == -1)
     {
       error_msg = "Failed to fork process";
-      if (verbose)
+      if (verbose) { callbackStdErr_(error_msg + '\n'); }
+      if (want_read)
       {
-        callbackStdErr_(error_msg + '\n');
+        if (pipe_out[0] != -1) close(pipe_out[0]);
+        if (pipe_out[1] != -1) close(pipe_out[1]);
+        if (pipe_err[0] != -1) close(pipe_err[0]);
+        if (pipe_err[1] != -1) close(pipe_err[1]);
       }
       return RETURNSTATE::FAILED_TO_START;
     }
     else if (pid == 0)
     {
-      // Child process
-      if (io_mode != IO_MODE::NO_IO && io_mode != IO_MODE::WRITE_ONLY)
+      // Child
+      if (want_read)
       {
-        dup2(pipefd_stdout[1], STDOUT_FILENO);
-        dup2(pipefd_stderr[1], STDERR_FILENO);
-        close(pipefd_stdout[0]);
-        close(pipefd_stdout[1]);
-        close(pipefd_stderr[0]);
-        close(pipefd_stderr[1]);
+        dup2(pipe_out[1], STDOUT_FILENO);
+        dup2(pipe_err[1], STDERR_FILENO);
+        close(pipe_out[0]); close(pipe_out[1]);
+        close(pipe_err[0]); close(pipe_err[1]);
       }
 
-      // Change working directory if specified
       if (!working_dir.empty())
       {
         chdir(working_dir.c_str());
       }
 
-      // Prepare arguments
       std::vector<char*> argv_vec;
       argv_vec.push_back(const_cast<char*>(exe.c_str()));
-      for (const auto& arg : args)
-      {
-        argv_vec.push_back(const_cast<char*>(arg.c_str()));
-      }
+      for (const auto& a : args) argv_vec.push_back(const_cast<char*>(a.c_str()));
       argv_vec.push_back(nullptr);
 
       execvp(exe.c_str(), argv_vec.data());
-      
-      // If we reach here, exec failed
-      exit(127);
+      _exit(127); // If we reach here, exec failed
     }
-    else
-    {
-      // Parent process
-      if (io_mode != IO_MODE::NO_IO && io_mode != IO_MODE::WRITE_ONLY)
-      {
-        close(pipefd_stdout[1]);
-        close(pipefd_stderr[1]);
 
-        // Read output in a loop
-        fd_set readfds;
-        char buffer[4096];
-        
-        while (true)
+    // Parent
+    if (want_read)
+    {
+      // close write ends
+      close(pipe_out[1]);
+      close(pipe_err[1]);
+
+      bool child_finished = false;
+      int status_from_loop = 0;
+
+      fd_set fds;
+      char buffer[4096];
+
+      while (true)
+      {
+        FD_ZERO(&fds);
+        FD_SET(pipe_out[0], &fds);
+        FD_SET(pipe_err[0], &fds);
+
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 50000; // 50ms
+
+        int max_fd = std::max(pipe_out[0], pipe_err[0]) + 1;
+        int result = select(max_fd, &fds, nullptr, nullptr, &timeout);
+
+        if (result > 0)
         {
-          FD_ZERO(&readfds);
-          FD_SET(pipefd_stdout[0], &readfds);
-          FD_SET(pipefd_stderr[0], &readfds);
-          
-          struct timeval timeout;
-          timeout.tv_sec = 0;
-          timeout.tv_usec = 50000; // 50ms
-          
-          int max_fd = std::max(pipefd_stdout[0], pipefd_stderr[0]) + 1;
-          int result = select(max_fd, &readfds, nullptr, nullptr, &timeout);
-          
-          if (result > 0)
+          if (FD_ISSET(pipe_out[0], &fds))
           {
-            if (FD_ISSET(pipefd_stdout[0], &readfds))
+            ssize_t bytes_read = read(pipe_out[0], buffer, sizeof(buffer));
+            if (bytes_read > 0)
             {
-              ssize_t bytes_read = read(pipefd_stdout[0], buffer, sizeof(buffer) - 1);
-              if (bytes_read > 0)
-              {
-                buffer[bytes_read] = '\0';
-                callbackStdOut_(String(buffer));
-              }
-            }
-            
-            if (FD_ISSET(pipefd_stderr[0], &readfds))
-            {
-              ssize_t bytes_read = read(pipefd_stderr[0], buffer, sizeof(buffer) - 1);
-              if (bytes_read > 0)
-              {
-                buffer[bytes_read] = '\0';
-                callbackStdErr_(String(buffer));
-              }
+              callbackStdOut_(String(std::string(buffer, buffer + bytes_read)));
             }
           }
-          
-          // Check if child process is still running
-          int status;
-          pid_t result_pid = waitpid(pid, &status, WNOHANG);
-          if (result_pid != 0)
+          if (FD_ISSET(pipe_err[0], &fds))
           {
-            // Process finished, read remaining output
-            while (true)
+            ssize_t bytes_read = read(pipe_err[0], buffer, sizeof(buffer));
+            if (bytes_read > 0)
             {
-              ssize_t bytes_read = read(pipefd_stdout[0], buffer, sizeof(buffer) - 1);
-              if (bytes_read <= 0) break;
-              buffer[bytes_read] = '\0';
-              callbackStdOut_(String(buffer));
+              callbackStdErr_(String(std::string(buffer, buffer + bytes_read)));
             }
-            while (true)
-            {
-              ssize_t bytes_read = read(pipefd_stderr[0], buffer, sizeof(buffer) - 1);
-              if (bytes_read <= 0) break;
-              buffer[bytes_read] = '\0';
-              callbackStdErr_(String(buffer));
-            }
-            break;
           }
         }
-        
-        close(pipefd_stdout[0]);
-        close(pipefd_stderr[0]);
+
+        int status_tmp = 0;
+        pid_t pr = waitpid(pid, &status_tmp, WNOHANG);
+        if (pr == pid)
+        {
+          child_finished = true;
+          status_from_loop = status_tmp;
+          break;
+        }
       }
 
-      // Wait for child process to complete
-      int status;
-      waitpid(pid, &status, 0);
+      // drain any remaining
+      ssize_t bytes_read;
+      while ((bytes_read = read(pipe_out[0], buffer, sizeof(buffer))) > 0)
+      {
+        callbackStdOut_(String(std::string(buffer, buffer + bytes_read)));
+      }
+      while ((bytes_read = read(pipe_err[0], buffer, sizeof(buffer))) > 0)
+      {
+        callbackStdErr_(String(std::string(buffer, buffer + bytes_read)));
+      }
+
+      close(pipe_out[0]);
+      close(pipe_err[0]);
+
+      int status = 0;
+      if (!child_finished)
+      {
+        waitpid(pid, &status, 0);
+      }
+      else
+      {
+        status = status_from_loop;
+      }
 
       if (WIFEXITED(status))
       {
         int exit_code = WEXITSTATUS(status);
-        if (exit_code != 0)
+        if (exit_code == 0)
         {
-          error_msg = "Process '" + String(exe) + "' did not finish successfully (exit code: " + String(exit_code) + "). Please check the log.";
-          if (verbose)
-          {
-            callbackStdErr_(error_msg + '\n');
-          }
-          return RETURNSTATE::NONZERO_EXIT;
+          if (verbose) { callbackStdOut_("Executed '" + String(exe) + "' successfully!\n"); }
+          return RETURNSTATE::SUCCESS;
         }
+        if (exit_code == 127)
+        {
+          error_msg = "Process '" + String(exe) + "' failed to start. Does it exist? Is it executable?";
+          if (verbose) { callbackStdErr_(error_msg + '\n'); }
+          return RETURNSTATE::FAILED_TO_START;
+        }
+        error_msg = "Process '" + String(exe) + "' did not finish successfully (exit code: " + String(exit_code) + "). Please check the log.";
+        if (verbose) { callbackStdErr_(error_msg + '\n'); }
+        return RETURNSTATE::NONZERO_EXIT;
       }
       else if (WIFSIGNALED(status))
       {
         error_msg = "Process '" + String(exe) + "' crashed (signal: " + String(WTERMSIG(status)) + ").";
-        if (verbose)
-        {
-          callbackStdErr_(error_msg + '\n');
-        }
+        if (verbose) { callbackStdErr_(error_msg + '\n'); }
         return RETURNSTATE::CRASH;
       }
+
+      if (verbose) { callbackStdOut_("Executed '" + String(exe) + "' successfully!\n"); }
+      return RETURNSTATE::SUCCESS;
+    }
+    else
+    {
+      // No IO requested: just wait for child
+      int status = 0;
+      waitpid(pid, &status, 0);
+      if (WIFEXITED(status))
+      {
+        int exit_code = WEXITSTATUS(status);
+        if (exit_code == 0)
+        {
+          if (verbose) { callbackStdOut_("Executed '" + String(exe) + "' successfully!\n"); }
+          return RETURNSTATE::SUCCESS;
+        }
+        if (exit_code == 127)
+        {
+          error_msg = "Process '" + String(exe) + "' failed to start. Does it exist? Is it executable?";
+          if (verbose) { callbackStdErr_(error_msg + '\n'); }
+          return RETURNSTATE::FAILED_TO_START;
+        }
+        error_msg = "Process '" + String(exe) + "' did not finish successfully (exit code: " + String(exit_code) + "). Please check the log.";
+        if (verbose) { callbackStdErr_(error_msg + '\n'); }
+        return RETURNSTATE::NONZERO_EXIT;
+      }
+      else if (WIFSIGNALED(status))
+      {
+        error_msg = "Process '" + String(exe) + "' crashed (signal: " + String(WTERMSIG(status)) + ").";
+        if (verbose) { callbackStdErr_(error_msg + '\n'); }
+        return RETURNSTATE::CRASH;
+      }
+      if (verbose) { callbackStdOut_("Executed '" + String(exe) + "' successfully!\n"); }
+      return RETURNSTATE::SUCCESS;
     }
 #endif
-    
-    if (verbose)
-    {
-      callbackStdOut_("Executed '" + String(exe) + "' successfully!\n");
-    }
-    return RETURNSTATE::SUCCESS;
   }
 
 } // namespace OpenMS

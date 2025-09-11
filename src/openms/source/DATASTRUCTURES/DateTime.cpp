@@ -81,27 +81,31 @@ namespace OpenMS
 
   void DateTime::parseDate_(const String& s, int& y, int& m, int& d)
   {
-    // yyyy-MM-dd
+    // yyyy-MM-dd (strict length and separators)
     if (s.has('-'))
     {
-      if (s.size() < 10) throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date string");
+      if (s.size() != 10) throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date string");
       if (!parse_int4_(s.c_str(), y)) throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid year");
       if (s[4] != '-') throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date separator");
       if (!parse_int2_(s.c_str()+5, m)) throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid month");
       if (s[7] != '-') throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date separator");
       if (!parse_int2_(s.c_str()+8, d)) throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid day");
     }
-    // MM/dd/yyyy
+    // MM/dd/yyyy (strict length and separators)
     else if (s.has('/'))
     {
+      if (s.size() != 10 || s[2] != '/' || s[5] != '/')
+        throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date");
       int mm=0, dd=0, yy=0;
       if (std::sscanf(s.c_str(), "%d/%d/%d", &mm, &dd, &yy) != 3)
         throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date");
       m = mm; d = dd; y = yy;
     }
-    // dd.MM.yyyy
+    // dd.MM.yyyy (strict length and separators)
     else if (s.has('.'))
     {
+      if (s.size() != 10 || s[2] != '.' || s[5] != '.')
+        throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date");
       int mm=0, dd=0, yy=0;
       if (std::sscanf(s.c_str(), "%d.%d.%d", &dd, &mm, &yy) != 3)
         throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, s, "Invalid date");
@@ -126,6 +130,12 @@ namespace OpenMS
 
   void DateTime::setDate(const String& date)
   {
+    // Treat sentinel "0000-00-00" as 'unset' (keep invalid state)
+    if (date == "0000-00-00")
+    {
+      clear();
+      return;
+    }
     int y=0, m=0, d=0;
     parseDate_(date, y, m, d);
     year_ = y; month_ = m; day_ = d;
@@ -287,6 +297,7 @@ namespace OpenMS
   String DateTime::toString(const std::string& format) const
   {
     // Minimal support: "yyyy-MM-ddThh:mm:ss" and default "yyyy-MM-dd hh:mm:ss"
+    // Note: "yyyy-MM-dd+hh:mm" is NOT a valid Qt format, so we fall back to default like Qt did
     if (!valid_) return "0000-00-00 00:00:00";
     std::ostringstream oss;
     if (format == "yyyy-MM-ddThh:mm:ss")
@@ -299,7 +310,7 @@ namespace OpenMS
           << std::setw(2) << second_;
       return String(oss.str());
     }
-    // default to space separator
+    // For any unsupported format (like "yyyy-MM-dd+hh:mm"), fall back to default like Qt did
     oss << std::setfill('0') << std::setw(4) << year_ << '-'
         << std::setw(2) << month_ << '-'
         << std::setw(2) << day_ << ' '
@@ -331,37 +342,61 @@ namespace OpenMS
   void DateTime::set(const String& date)
   {
     clear();
+    // Normalize and handle sentinel "0000-00-00" forms as 'unset'
+    String d = date;
+    d = d.trim();
+    if (d == "0000-00-00" || d == "0000-00-00 00:00:00")
+    {
+      // keep invalid state after clear()
+      return;
+    }
     // Supported patterns:
     // - "MM/dd/yyyy hh:mm:ss"
     // - "dd.MM.yyyy hh:mm:ss"
     // - "yyyy-MM-dd hh:mm:ss"
-    // - "yyyy-MM-ddThh:mm:ss"
+    // - "yyyy-MM-ddThh:mm:ss[.sss][+hh:mm]" (timezone/milliseconds ignored)
     // - "yyyy-MM-ddZ" (date-only)
-    // - "yyyy-MM-dd+hh:mm" (date-only, ignore timezone)
-    String d = date;
+    // - "yyyy-MM-dd+hh:mm" (treat '+hh:mm' as time-of-day)
+
     if (d.has('T'))
     {
-      // ISO "yyyy-MM-ddThh:mm:ss"
+      // ISO "yyyy-MM-ddThh:mm:ss[...]" - ignore trailing fractional seconds and timezone
       String ds = d.prefix('T');
       String ts = String(d.c_str() + static_cast<int>(ds.size()) + 1);
       setDate(ds);
       setTime(ts);
       return;
     }
-    if (d.has('Z') && d.size() >= 10)
+
+    // 'Z' indicates date-only, must be the final character
+    if (d.has('Z'))
     {
-      // "yyyy-MM-ddZ" -> date only
-      setDate(d.prefix('Z'));
-      setTime(String("00:00:00"));
+      if (d.size() > 0 && d[static_cast<int>(d.size()) - 1] == 'Z')
+      {
+        setDate(d.prefix('Z'));
+        setTime(String("00:00:00"));
+        return;
+      }
+      throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, d, "Invalid timezone/date suffix");
+    }
+
+    // '+' between date and time-of-day: "yyyy-MM-dd+hh:mm"
+    if (d.has('+'))
+    {
+      String ds = d.prefix('+');
+      // consume the '+' and build the suffix string
+      const char* rest = d.c_str() + static_cast<int>(ds.size()) + 1;
+      String hm(rest);
+      int hh = 0, mm = 0;
+      if (std::sscanf(hm.c_str(), "%d:%d", &hh, &mm) != 2 || !validTime_(hh, mm, 0))
+      {
+        throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, d, "Invalid time-of-day after '+'");
+      }
+      setDate(ds);
+      setTime(static_cast<UInt>(hh), static_cast<UInt>(mm), 0);
       return;
     }
-    if (d.has('+') && d.size() >= 10)
-    {
-      // "yyyy-MM-dd+hh:mm" -> date only; ignore tz
-      setDate(d.prefix('+'));
-      setTime(String("00:00:00"));
-      return;
-    }
+
     // space separator "yyyy-MM-dd hh:mm:ss" or other
     if (d.has(' '))
     {
@@ -371,7 +406,8 @@ namespace OpenMS
       setTime(ts);
       return;
     }
-    // Fallback: only date provided
+
+    // Fallback: only date provided (strict formats)
     setDate(d);
     setTime(String("00:00:00"));
   }

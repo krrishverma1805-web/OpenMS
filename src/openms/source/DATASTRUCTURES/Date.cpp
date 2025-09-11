@@ -40,7 +40,9 @@ namespace OpenMS
     if (date.has('.'))
     {
       int d = 0, m = 0, y = 0;
-      if (std::sscanf(date.c_str(), "%d.%d.%d", &d, &m, &y) == 3 && valid_(y, m, d))
+      char extra; // to catch any extra characters
+      int parsed = std::sscanf(date.c_str(), "%d.%d.%d%c", &d, &m, &y, &extra);
+      if (parsed == 3 && valid_(y, m, d))
       {
         day_ = d; month_ = m; year_ = y; valid_flag_ = true;
         return;
@@ -50,7 +52,9 @@ namespace OpenMS
     else if (date.has('/'))
     {
       int d = 0, m = 0, y = 0;
-      if (std::sscanf(date.c_str(), "%d/%d/%d", &m, &d, &y) == 3 && valid_(y, m, d))
+      char extra; // to catch any extra characters
+      int parsed = std::sscanf(date.c_str(), "%d/%d/%d%c", &m, &d, &y, &extra);
+      if (parsed == 3 && valid_(y, m, d))
       {
         day_ = d; month_ = m; year_ = y; valid_flag_ = true;
         return;
@@ -60,7 +64,9 @@ namespace OpenMS
     else if (date.has('-'))
     {
       int d = 0, m = 0, y = 0;
-      if (std::sscanf(date.c_str(), "%d-%d-%d", &y, &m, &d) == 3 && valid_(y, m, d))
+      char extra; // to catch any extra characters
+      int parsed = std::sscanf(date.c_str(), "%d-%d-%d%c", &y, &m, &d, &extra);
+      if (parsed == 3 && valid_(y, m, d))
       {
         day_ = d; month_ = m; year_ = y; valid_flag_ = true;
         return;

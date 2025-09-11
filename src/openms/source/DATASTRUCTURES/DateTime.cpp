@@ -357,6 +357,113 @@ namespace OpenMS
     // - "yyyy-MM-ddThh:mm:ss[.sss][+hh:mm]" (timezone/milliseconds ignored)
     // - "yyyy-MM-ddZ" (date-only)
     // - "yyyy-MM-dd+hh:mm" (treat '+hh:mm' as time-of-day)
+    // - "EEE MMM d hh:mm:ss yyyy" (Unix ctime-like; weekday ignored; also accepts 3+ digit years)
+
+    // Try Unix ctime-like format early to avoid failing on the generic ' ' split
+    {
+      const char* p = d.c_str();
+      // Skip leading spaces
+      while (*p == ' ') ++p;
+      // Parse weekday token (>=3 letters)
+      int letters = 0;
+      while (std::isalpha(static_cast<unsigned char>(*p))) { ++p; ++letters; }
+      bool has_weekday = (letters >= 3);
+
+      // Proceed if weekday token and next non-space seems like a month token
+      const char* q = p;
+      while (*q == ' ') ++q;
+      auto tolower_c = [](char ch) -> char { return static_cast<char>(std::tolower(static_cast<unsigned char>(ch))); };
+      auto month_from = [&](char a, char b, char c) -> int
+      {
+        a = tolower_c(a); b = tolower_c(b); c = tolower_c(c);
+        if (a=='j' && b=='a' && c=='n') return 1;
+        if (a=='f' && b=='e' && c=='b') return 2;
+        if (a=='m' && b=='a' && c=='r') return 3;
+        if (a=='a' && b=='p' && c=='r') return 4;
+        if (a=='m' && b=='a' && c=='y') return 5;
+        if (a=='j' && b=='u' && c=='n') return 6;
+        if (a=='j' && b=='u' && c=='l') return 7;
+        if (a=='a' && b=='u' && c=='g') return 8;
+        if (a=='s' && b=='e' && c=='p') return 9;
+        if (a=='o' && b=='c' && c=='t') return 10;
+        if (a=='n' && b=='o' && c=='v') return 11;
+        if (a=='d' && b=='e' && c=='c') return 12;
+        return 0;
+      };
+
+      if (has_weekday &&
+          std::isalpha(static_cast<unsigned char>(q[0])) &&
+          std::isalpha(static_cast<unsigned char>(q[1])) &&
+          std::isalpha(static_cast<unsigned char>(q[2])) )
+      {
+        int mmonth = month_from(q[0], q[1], q[2]);
+        if (mmonth != 0)
+        {
+          // Move p to after month
+          p = q + 3;
+          // Skip spaces
+          while (*p == ' ') ++p;
+          // Day of month (1-2 digits)
+          int dd = 0;
+          int nd = 0;
+          while (std::isdigit(static_cast<unsigned char>(*p)))
+          {
+            dd = dd * 10 + (*p - '0');
+            ++p; ++nd;
+          }
+          if (nd > 0)
+          {
+            // Skip spaces
+            while (*p == ' ') ++p;
+            // Time hh:mm:ss
+            int hh = 0, mm = 0, ss = 0;
+            int n = 0;
+            while (std::isdigit(static_cast<unsigned char>(*p))) { hh = hh*10 + (*p - '0'); ++p; ++n; }
+            if (n > 0 && *p == ':')
+            {
+              ++p; n = 0;
+              while (std::isdigit(static_cast<unsigned char>(*p))) { mm = mm*10 + (*p - '0'); ++p; ++n; }
+              if (n > 0 && *p == ':')
+              {
+                ++p; n = 0;
+                while (std::isdigit(static_cast<unsigned char>(*p))) { ss = ss*10 + (*p - '0'); ++p; ++n; }
+                if (n > 0)
+                {
+                  // Skip spaces
+                  while (*p == ' ') ++p;
+                  // Year (accept >=1 digits)
+                  int yy = 0; n = 0;
+                  while (std::isdigit(static_cast<unsigned char>(*p)))
+                  {
+                    yy = yy*10 + (*p - '0');
+                    ++p; ++n;
+                  }
+                  if (n > 0)
+                  {
+                    // Validate and set
+                    if (validDate_(yy, mmonth, dd) && validTime_(hh, mm, ss))
+                    {
+                      year_ = yy; month_ = mmonth; day_ = dd;
+                      hour_ = hh; minute_ = mm; second_ = ss;
+                      valid_ = true;
+                      return;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Supported patterns:
+    // - "MM/dd/yyyy hh:mm:ss"
+    // - "dd.MM.yyyy hh:mm:ss"
+    // - "yyyy-MM-dd hh:mm:ss"
+    // - "yyyy-MM-ddThh:mm:ss[.sss][+hh:mm]" (timezone/milliseconds ignored)
+    // - "yyyy-MM-ddZ" (date-only)
+    // - "yyyy-MM-dd+hh:mm" (treat '+hh:mm' as time-of-day)
 
     if (d.has('T'))
     {

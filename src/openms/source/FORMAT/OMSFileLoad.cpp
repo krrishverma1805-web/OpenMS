@@ -1159,6 +1159,6 @@ namespace OpenMS::Internal
       json_data[table] = exportTableToJSON_(table, order_by);
     }
 
-    output << json_data.dump();
+    output << json_data.dump(2);
   }
 }

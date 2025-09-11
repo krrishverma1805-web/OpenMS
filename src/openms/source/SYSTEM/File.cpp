@@ -173,8 +173,8 @@ namespace OpenMS
     {
       return false;
     }
-    
-    auto perms = std::filesystem::status(static_cast<std::string>(file), ec).permissions();
+
+    [[maybe_unused]] auto perms = std::filesystem::status(static_cast<std::string>(file), ec).permissions();
     if (ec) return false;
     
     // Check if executable bit is set (on Unix-like systems)

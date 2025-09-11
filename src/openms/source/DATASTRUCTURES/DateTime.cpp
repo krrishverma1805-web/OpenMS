@@ -310,14 +310,26 @@ namespace OpenMS
           << std::setw(2) << second_;
       return String(oss.str());
     }
-    // For any unsupported format (like "yyyy-MM-dd+hh:mm"), fall back to default like Qt did
-    oss << std::setfill('0') << std::setw(4) << year_ << '-'
-        << std::setw(2) << month_ << '-'
-        << std::setw(2) << day_ << ' '
-        << std::setw(2) << hour_ << ':'
-        << std::setw(2) << minute_ << ':'
-        << std::setw(2) << second_;
-    return String(oss.str());
+    else if (format == "yyyy-MM-dd+hh:mm") // modified ISO 8601 format used in legacy OpenMS
+    {
+      // For any unsupported format, fall back to default like Qt did
+      oss << std::setfill('0') << std::setw(4) << year_ << '-'
+          << std::setw(2) << month_ << '-'
+          << std::setw(2) << day_ << '+'
+          << std::setw(2) << hour_ << ':'
+          << std::setw(2) << minute_ ;
+      return String(oss.str());
+    }
+    else // default "yyyy-MM-dd hh:mm:ss"
+    {
+      oss << std::setfill('0') << std::setw(4) << year_ << '-'
+          << std::setw(2) << month_ << '-'
+          << std::setw(2) << day_ << ' '
+          << std::setw(2) << hour_ << ':'
+          << std::setw(2) << minute_ << ':'
+          << std::setw(2) << second_;
+      return String(oss.str());
+    }
   }
 
   DateTime DateTime::fromString(const std::string& date, const std::string& format)

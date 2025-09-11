@@ -48,6 +48,7 @@
 #include <functional>
 #include <iomanip>
 #include <sstream>
+#include <boost/uuid/detail/sha1.hpp>
 
 using namespace std;
 
@@ -586,21 +587,45 @@ namespace OpenMS
 
   String FileHandler::computeFileHash(const String& filename)
   {
-    std::ifstream file(filename, std::ios::binary);
+    std::ifstream file(filename.c_str(), std::ios::binary);
     if (!file.is_open())
     {
       return "";
     }
-    
-    // Read file content and compute hash
-    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    std::hash<std::string> hasher;
-    size_t hash_value = hasher(content);
-    
-    std::ostringstream result;
-    result << std::hex << hash_value;
-    
-    return String(result.str());
+
+    boost::uuids::detail::sha1 sha;
+
+    char buffer[8192];
+    for (;;)
+    {
+      file.read(buffer, sizeof(buffer));
+      std::streamsize n = file.gcount();
+      if (n > 0)
+      {
+        sha.process_bytes(buffer, static_cast<size_t>(n));
+      }
+      if (file.eof())
+      {
+        break;
+      }
+      if (file.fail() || file.bad())
+      {
+        // On read error, return empty string (consistent with previous behavior)
+        return "";
+      }
+    }
+
+    unsigned int digest[5] = {0, 0, 0, 0, 0};
+    sha.get_digest(digest);
+
+    std::ostringstream oss;
+    oss << std::hex << std::nouppercase << std::setfill('0');
+    for (int i = 0; i < 5; ++i)
+    {
+      oss << std::setw(8) << digest[i];
+    }
+
+    return String(oss.str());
   }
 
   void FileHandler::loadSpectrum(const String& filename, MSSpectrum& spec, const std::vector<FileTypes::Type> allowed_types)

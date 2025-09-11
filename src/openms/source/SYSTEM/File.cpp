@@ -24,6 +24,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <fstream>
+#include <regex>
 
 #ifdef OPENMS_WINDOWSPLATFORM
 #include <Windows.h> // for GetCurrentProcessId() && GetModuleFileName()
@@ -37,10 +38,6 @@
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
-
-#include <httplib.h>
-#include <regex>
-
 
 using namespace std;
 
@@ -242,33 +239,38 @@ namespace OpenMS
   // https://stackoverflow.com/questions/2536524/copy-directory-using-qt
   bool File::copyDirRecursively(const String& from_dir, const String& to_dir, File::CopyOptions option)
   {
-    std::filesystem::path source_path(static_cast<std::string>(from_dir));
-    std::filesystem::path target_path(static_cast<std::string>(to_dir));
+    namespace fs = std::filesystem;
+    fs::path source_path(static_cast<std::string>(from_dir));
+    fs::path target_path(static_cast<std::string>(to_dir));
 
-    try 
+    try
     {
-      // Get canonical paths to check if they're the same
-      std::filesystem::path canonical_source = std::filesystem::canonical(source_path);
-      std::filesystem::path canonical_target = std::filesystem::canonical(target_path.parent_path()) / target_path.filename();
+      // Check source exists and is a directory
+      if (!fs::exists(source_path) || !fs::is_directory(source_path))
+      {
+        OPENMS_LOG_ERROR << "Error: Source directory '" << from_dir << "' does not exist or is not a directory." << std::endl;
+        return false;
+      }
 
-      // check canonical path
-      if (canonical_source == canonical_target)
+      // If target exists, ensure it is not the same as source
+      std::error_code ec_equiv;
+      if (fs::exists(target_path) && fs::equivalent(source_path, target_path, ec_equiv))
       {
         OPENMS_LOG_ERROR << "Error: Could not copy  " << from_dir << " to " << to_dir << ". Same path given." << std::endl;
         return false;
       }
 
-      // make directory if not present
-      if (!std::filesystem::exists(target_path))
+      // Create target if not present (parents included)
+      if (!fs::exists(target_path))
       {
-        std::filesystem::create_directories(target_path);
+        fs::create_directories(target_path);
       }
 
       // copy folder recursively
-      for (const auto& entry : std::filesystem::directory_iterator(source_path))
+      for (const auto& entry : fs::directory_iterator(source_path))
       {
-        const std::filesystem::path& entry_path = entry.path();
-        std::filesystem::path target_entry = target_path / entry_path.filename();
+        const fs::path& entry_path = entry.path();
+        fs::path target_entry = target_path / entry_path.filename();
 
         if (entry.is_directory())
         {
@@ -279,23 +281,29 @@ namespace OpenMS
         }
         else
         {
-          if (std::filesystem::exists(target_entry))
+          if (fs::exists(target_entry))
           {
             switch (option)
+            {
+              case CopyOptions::CANCEL:
+                return false;
+              case CopyOptions::SKIP:
+                OPENMS_LOG_WARN << "The file " << entry_path.filename().string() << " was skipped." << std::endl;
+                continue;
+              case CopyOptions::OVERWRITE:
               {
-                case CopyOptions::CANCEL:
-                  return false;
-                case CopyOptions::SKIP:
-                  OPENMS_LOG_WARN << "The file " << entry_path.filename().string() << " was skipped." << std::endl;
-                  continue;
-                case CopyOptions::OVERWRITE:
-                  std::filesystem::remove(target_entry);
+                std::error_code ec_rm;
+                fs::remove(target_entry, ec_rm); // ignore error; best-effort
+                break;
               }
+            }
           }
-          std::error_code ec;
-          std::filesystem::copy_file(entry_path, target_entry, ec);
-          if (ec)
+
+          std::error_code ec_cp;
+          fs::copy_file(entry_path, target_entry, ec_cp);
+          if (ec_cp)
           {
+            OPENMS_LOG_ERROR << "Error: Could not copy file '" << entry_path.string() << "' to '" << target_entry.string() << "': " << ec_cp.message() << std::endl;
             return false;
           }
         }
@@ -1039,94 +1047,7 @@ namespace OpenMS
 
   File::TemporaryFiles_ File::temporary_files_;
 
-  // construct a filename. Add number if already exists.
-  std::string saveFileName_(const std::string& url)
-  {
-    // Extract filename from URL path
-    size_t slash_pos = url.find_last_of('/');
-    std::string basename = (slash_pos != std::string::npos) ? url.substr(slash_pos + 1) : "download";
-    
-    if (basename.empty())
-        basename = "download";
 
-    if (File::exists(basename)) {
-        // already exists, don't overwrite
-        int i = 0;
-        std::string base_with_dot = basename + ".";
-        while (File::exists(base_with_dot + std::to_string(i)))
-            ++i;
-
-        basename = base_with_dot + std::to_string(i);
-    }
-
-    return basename;
-  }
-
-// static
-void File::download(const std::string& url, const std::string& download_folder)
-{
-  try
-  {
-    // Parse URL to extract host and path
-    std::regex url_regex(R"(^https?://([^/]+)(/.*)?$)");
-    std::smatch matches;
-    
-    if (!std::regex_match(url, matches, url_regex))
-    {
-      throw Exception::FileNotFound(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, 
-                                   "Invalid URL format: " + url);
-    }
-    
-    std::string host = matches[1].str();
-    std::string path = matches.size() > 2 ? matches[2].str() : "/";
-    
-    // Create HTTP client
-    bool is_https = url.substr(0, 8) == "https://";
-    httplib::Client client(host);
-    client.set_connection_timeout(30, 0); // 30 seconds timeout
-    
-    // Make GET request
-    auto response = client.Get(path.c_str());
-    
-    if (!response)
-    {
-      throw Exception::FileNotFound(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION,
-                                   "Failed to connect to server: " + url);
-    }
-    
-    if (response->status != 200)
-    {
-      throw Exception::FileNotFound(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION,
-                                   "HTTP error " + std::to_string(response->status) + " for URL: " + url);
-    }
-    
-    // Determine output folder and filename
-    std::string folder = download_folder.empty() ? "./" : download_folder;
-    if (!folder.empty() && folder.back() != '/')
-      folder += "/";
-    
-    std::string filename = folder + saveFileName_(url);
-    
-    // Write response to file
-    std::ofstream file(filename, std::ios::binary);
-    if (!file.is_open())
-    {
-      throw Exception::FileNotFound(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION,
-                                   "Cannot write to file: " + filename);
-    }
-    
-    file.write(response->body.data(), response->body.size());
-    file.close();
-    
-    OPENMS_LOG_INFO << "Download of '" << url << "' successful." << endl;
-    OPENMS_LOG_INFO << "Stored as '" << filename << "'." << endl;
-  }
-  catch (const std::exception& e)
-  {
-    String error = "Download of '" + url + "' failed! Error: " + String(e.what());
-    throw Exception::FileNotFound(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, error);
-  }
-}
 
 
 } // namespace OpenMS

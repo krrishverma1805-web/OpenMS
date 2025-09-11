@@ -100,7 +100,6 @@ namespace OpenMS
       // Get file modification time using std::filesystem
       std::filesystem::path version_file_path(static_cast<std::string>(version_file_name));
       auto last_modified = std::filesystem::last_write_time(version_file_path);
-      auto current_time = std::chrono::file_clock::now();
       
       // Convert to system time for comparison
       auto last_modified_sys = std::chrono::time_point_cast<std::chrono::system_clock::duration>(

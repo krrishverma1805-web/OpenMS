@@ -316,14 +316,20 @@ namespace OpenMS
       throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, openms_line, msg);
     }
 
-    // TODO Just use wide char stream instead of pulling in Qt...
-    // Better even.. dont allow such kind of BS in a file
-    const char prime_char = '\''; // Use apostrophe instead of Unicode prime
     while (std::getline(file, line))
     {
       line_count++;
 
-      // replace all "prime" characters with apostrophes (e.g. in "5'", "3'"):
+      // Replace Unicode prime characters with apostrophes
+      // Assuming UTF-8 encoded strings
+      std::string prime_utf8 = "\xe2\x80\xb2";  // UTF-8 encoding of prime
+      size_t pos = 0;
+      while ((pos = line.find(prime_utf8, pos)) != std::string::npos)
+      {
+        line.replace(pos, prime_utf8.length(), "'");
+        pos += 1;
+      }
+    
       // For now, assume input already uses apostrophes or we skip this conversion
       try
       {

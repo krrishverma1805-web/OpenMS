@@ -357,7 +357,20 @@ namespace OpenMS
   {
     try
     {
-      return std::filesystem::create_directories(static_cast<std::string>(dir_name));
+      const std::string s = static_cast<std::string>(dir_name);
+      std::error_code ec;
+      // If it already exists and is a directory, that's success (Qt QDir::mkpath behavior)
+      if (std::filesystem::exists(s, ec) && std::filesystem::is_directory(s, ec))
+      {
+        return true;
+      }
+      // If a non-directory entry exists at the path, fail
+      if (std::filesystem::exists(s, ec) && !std::filesystem::is_directory(s, ec))
+      {
+        return false;
+      }
+      // Otherwise, attempt to create the directory (and parents)
+      return std::filesystem::create_directories(s);
     }
     catch (const std::filesystem::filesystem_error& /*e*/)
     {

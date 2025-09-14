@@ -29,7 +29,6 @@
 #include <fstream>
 #include <regex>
 
-#include <QStringList>
 #include <chrono>
 #include <map>
 #include <vector>
@@ -1031,38 +1030,53 @@ protected:
 
     String annotation_check;    
 
-    QStringList arguments;
+    std::vector<std::string> arguments;
 
-  if ( (getStringOption_("annotate_matches").compare("true")) == 0)
-  {
-    arguments << QString::fromStdString((config_file))
-              << "-f" << QString::fromStdString((fasta_file))
-              << "-o" << QString::fromStdString((output_folder))
-              << "--annotate-matches"
-              << "--write-pin";
-  }
-  else
-  {
-    arguments << QString::fromStdString((config_file))
-              << "-f" << QString::fromStdString((fasta_file))
-              << "-o" << QString::fromStdString((output_folder))
-              << "--write-pin";
-  }
+    if ((getStringOption_("annotate_matches").compare("true")) == 0)
+    {
+      arguments.push_back(config_file);
+      arguments.push_back("-f");
+      arguments.push_back(fasta_file);
+      arguments.push_back("-o");
+      arguments.push_back(output_folder);
+      arguments.push_back("--annotate-matches");
+      arguments.push_back("--write-pin");
+    }
+    else
+    {
+      arguments.push_back(config_file);
+      arguments.push_back("-f");
+      arguments.push_back(fasta_file);
+      arguments.push_back("-o");
+      arguments.push_back(output_folder);
+      arguments.push_back("--write-pin");
+    }
 
-    if (batch >= 1) arguments << "--batch-size" << QString::fromStdString((String(batch)));
-    
-    for (auto s : input_files) arguments << QString::fromStdString((s));
+    if (batch >= 1)
+    {
+      arguments.push_back("--batch-size");
+      arguments.push_back(std::to_string(batch));
+    }
 
-    OPENMS_LOG_INFO << "Sage command line: " << sage_executable << " " << arguments.join(' ').toStdString() << std::endl;
-    
-    //std::chrono lines for testing/writing purposes only! 
+    for (auto s : input_files)
+    {
+      arguments.push_back(s);
+    }
 
+    {
+      std::string joined;
+      for (size_t i = 0; i < arguments.size(); ++i)
+      {
+        if (i) joined += " ";
+        joined += arguments[i];
+      }
+      OPENMS_LOG_INFO << "Sage command line: " << sage_executable << " " << joined << std::endl;
+    }
+
+    //std::chrono lines for testing/writing purposes only!
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    // Sage execution with the executable and the arguments StringList
-    std::vector<std::string> args;
-    args.reserve(arguments.size());
-    for (const auto& a : arguments) args.push_back(a.toStdString());
-    exit_code = runExternalProcess_(sage_executable, args);
+    // Sage execution with the executable and the arguments vector
+    exit_code = runExternalProcess_(sage_executable, arguments);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     #ifdef CHRONOSET
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << "[s]" << std::endl;

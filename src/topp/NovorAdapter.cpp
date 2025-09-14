@@ -247,20 +247,20 @@ protected:
     String tmp_out = tmp_dir.getPath() + "tmp_out_novor.csv";
 
     std::vector<std::string> process_params;
-    process_params.push_back(static_cast<std::string>(java_memory));
+    process_params.push_back(java_memory);
     process_params.push_back("-jar");
-    process_params.push_back(static_cast<std::string>(executable));
+    process_params.push_back(executable);
     process_params.push_back("-f");
     process_params.push_back("-o");
-    process_params.push_back(static_cast<std::string>(tmp_out));
+    process_params.push_back(tmp_out);
     process_params.push_back("-p");
-    process_params.push_back(static_cast<std::string>(tmp_param));
-    process_params.push_back(static_cast<std::string>(tmp_mgf));
+    process_params.push_back(tmp_param);
+    process_params.push_back(tmp_mgf);
 
 
     // print novor command line
     std::vector<std::string> args = process_params;
-    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable, args, static_cast<std::string>(path_to_executable));
+    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable, args, path_to_executable);
     if (exit_code != EXECUTION_OK)
     {
       return exit_code;

@@ -11,7 +11,6 @@
 #include <OpenMS/CONCEPT/LogStream.h>
 #include <OpenMS/FORMAT/FileHandler.h>
 #include <OpenMS/SYSTEM/File.h>
-#include <QDir>
 
 using std::map;
 using std::pair;
@@ -97,7 +96,7 @@ protected:
     bool numeric_filenames = getFlag_("numeric_filenames");
     bool split_ident_runs = getFlag_("split_ident_runs");
 
-    String output_directory = String(QFileInfo(QString::fromStdString(out_dir)).absoluteFilePath().toStdString());
+    String output_directory = File::absolutePath(out_dir);
 
     //-------------------------------------------------------------
     // calculations
@@ -128,24 +127,23 @@ protected:
       const IDRipper::RipFileIdentifier& rfi = it->first;
       const IDRipper::RipFileContent& rfc = it->second;
 
-      QString output = QString::fromStdString(output_directory);
-
       String out_fname;
       if (numeric_filenames)
       {
         String s_ident_run_idx = split_ident_runs ? '_' + String(rfi.ident_run_idx) : "";
         String s_file_origin_idx = '_' + String(rfi.file_origin_idx);
-        out_fname = String(QFileInfo(QString::fromStdString(file_name)).completeBaseName().toStdString()) + s_ident_run_idx + s_file_origin_idx + ".idXML";
+        String base = FileHandler::stripExtension(File::basename(file_name));
+        out_fname = base + s_ident_run_idx + s_file_origin_idx + ".idXML";
       }
       else
       {
-        out_fname = String(QFileInfo(QString::fromStdString(rfi.out_basename)).completeBaseName().toStdString()) + ".idXML";
+        String base = FileHandler::stripExtension(File::basename(rfi.out_basename));
+        out_fname = base + ".idXML";
       }
 
-      String out = String(QDir::toNativeSeparators(output.append(QString("/")).append(QString::fromStdString(out_fname))).toStdString());
+      String out = String(output_directory).ensureLastChar('/') + out_fname;
       OPENMS_LOG_INFO << "Storing file: '" << out << "'." << std::endl;
 
-      QDir dir(QString::fromStdString(output_directory));
       FileHandler().storeIdentifications(out, rfc.prot_idents, rfc.pep_idents, {FileTypes::IDXML});
     }
     return EXECUTION_OK;

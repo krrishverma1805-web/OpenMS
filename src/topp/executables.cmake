@@ -165,70 +165,9 @@ ImageCreator
 INIUpdater
 )
 
-# Gate Qt-dependent TOPP tools behind OpenMS_GUI to avoid Qt requirement in core-only builds
-list(REMOVE_ITEM TOPP_executables
-  CometAdapter
-  AssayGeneratorMetaboSirius
-  IDRipper
-  PercolatorAdapter
-  LuciphorAdapter
-  QCImporter
-  MapStatistics
-  FileConverter
-  MetaProSIP
-  QCExtractor
-  MaRaClusterAdapter
-  QCMerger
-  MzMLSplitter
-  QCExporter
-  QCShrinker
-  FLASHDeconv
-  GenericWrapper
-  MSGFPlusAdapter
-  NovorAdapter
-  OpenNuXL
-  NucleicAcidSearchEngine
-  QCEmbedder
-  MSFraggerAdapter
-  PSMFeatureExtractor
-  SageAdapter
-  SpectraSTSearchAdapter
-  FeatureFinderMultiplex
-  OpenSwathWorkflow
-  OpenSwathFileSplitter
-)
-
-set(TOPP_executables_with_GUIlib ${TOPP_executables_with_GUIlib}
-  CometAdapter
-  AssayGeneratorMetaboSirius
-  IDRipper
-  PercolatorAdapter
-  LuciphorAdapter
-  QCImporter
-  MapStatistics
-  FileConverter
-  MetaProSIP
-  QCExtractor
-  MaRaClusterAdapter
-  QCMerger
-  MzMLSplitter
-  QCExporter
-  QCShrinker
-  FLASHDeconv
-  GenericWrapper
-  MSGFPlusAdapter
-  NovorAdapter
-  OpenNuXL
-  NucleicAcidSearchEngine
-  QCEmbedder
-  MSFraggerAdapter
-  PSMFeatureExtractor
-  SageAdapter
-  SpectraSTSearchAdapter
-  FeatureFinderMultiplex
-  OpenSwathWorkflow
-  OpenSwathFileSplitter
-)
+# Following commit "remove from most TOPP tools", most TOPP tools no longer require Qt GUI.
+# Keep GUI linkage only for true GUI tools (ExecutePipeline, Resampler, ImageCreator, INIUpdater)
+# via TOPP_executables_with_GUIlib defined above. No additional gating needed here.
 ### add filenames to Visual Studio solution tree
 set(sources_VS)
 foreach(i ${TOPP_executables} ${TOPP_executables_with_GUIlib})

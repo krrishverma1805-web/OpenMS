@@ -42,6 +42,7 @@
 #include <OpenMS/ANALYSIS/OPENSWATH/SwathMapMassCorrection.h>
 
 #include <OpenMS/ANALYSIS/OPENSWATH/OpenSwathWorkflow.h>
+#include <filesystem>
 
 #include <cassert>
 #include <limits>
@@ -56,7 +57,6 @@ using namespace OpenMS;
 #include <OpenMS/CONCEPT/ProgressLogger.h>
 
 
-#include <QDir>
 
 //-------------------------------------------------------------
 //Doxygen docu
@@ -707,7 +707,9 @@ protected:
 
     // make sure tmp is a directory with proper separator at the end (downstream methods simply do path + filename)
     // (do not use QDir::separator(), since its platform specific (/ or \) while absolutePath() will always use '/')
-    String tmp_dir = String(QDir(getStringOption_("tempDirectory").c_str()).absolutePath().toStdString()).ensureLastChar('/');
+    std::filesystem::path tmp_dir_path = std::filesystem::absolute(getStringOption_("tempDirectory"));
+    String tmp_dir = tmp_dir_path.string();
+    tmp_dir.ensureLastChar('/');
 
     ///////////////////////////////////
     // Parameter validation

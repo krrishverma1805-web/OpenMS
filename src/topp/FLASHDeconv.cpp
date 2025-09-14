@@ -18,12 +18,12 @@
 #include <OpenMS/FORMAT/FileTypes.h>
 #include <OpenMS/FORMAT/FileHandler.h>
 #include <OpenMS/METADATA/SpectrumLookup.h>
+#include <chrono>
 
 #ifdef _OPENMP
   #include <omp.h>
 #endif
 
-#include <QFileInfo>
 
 using namespace OpenMS;
 using namespace std;

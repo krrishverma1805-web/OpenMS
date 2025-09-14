@@ -22,9 +22,7 @@
 #include <OpenMS/FORMAT/FileHandler.h>
 #include <OpenMS/KERNEL/RangeUtils.h>
 #include <OpenMS/SYSTEM/File.h>
-#include <QtCore/QDir>
-#include <QtCore/QDirIterator>
-#include <QtCore/QString>
+#include <filesystem>
 #include <algorithm>
 #include <map>
 
@@ -191,11 +189,13 @@ protected:
     // Get all subdirectories within the SIRIUS project directory
     //-------------------------------------------------------------
     std::vector<String> subdirs;
-    QDirIterator it(QString::fromStdString(sirius_project_directory), QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::NoIteratorFlags);
-    while (it.hasNext())
+    for (const auto& entry : std::filesystem::directory_iterator(static_cast<std::string>(sirius_project_directory)))
     {
-      subdirs.emplace_back(it.next().toStdString());
-    }  
+      if (entry.is_directory())
+      {
+        subdirs.emplace_back(entry.path().string());
+      }
+    }
     OPENMS_LOG_DEBUG << subdirs.size() << " spectra were annotated using SIRIUS." << std::endl;
     if (subdirs.empty())
     {

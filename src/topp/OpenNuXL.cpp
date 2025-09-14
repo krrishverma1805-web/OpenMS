@@ -88,12 +88,12 @@
 
 #include <OpenMS/KERNEL/BinnedSpectrum.h>
 
-#include <QtCore/QDir>
 
 #include <map>
 #include <algorithm>
 #include <iterator>
 #include <cmath>
+#include <filesystem>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -4669,13 +4669,12 @@ static void scoreXLIons_(
     if (!extra_output_directory.empty())
     {
       // convert path to absolute path
-      QDir extra_dir(QString::fromStdString(extra_output_directory));
-      extra_output_directory = String(extra_dir.absolutePath().toStdString());
+      extra_output_directory = std::filesystem::absolute(std::filesystem::path(extra_output_directory.c_str())).string();
 
       // trying to create directory if not present
-      if (!extra_dir.exists())
+      if (!File::exists(extra_output_directory))
       {
-        extra_dir.mkpath(QString::fromStdString(extra_output_directory));
+        std::filesystem::create_directories(std::filesystem::path(extra_output_directory.c_str()));
       }
     }
 

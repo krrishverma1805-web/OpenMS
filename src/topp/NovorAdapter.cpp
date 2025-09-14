@@ -26,7 +26,6 @@
 
 #include <OpenMS/SYSTEM/JavaInfo.h>
 
-#include <QFileInfo>
 
 #include <fstream>
 
@@ -173,7 +172,7 @@ protected:
     // determine the executable
     //-------------------------------------------------------------
     const String java_executable = getStringOption_("java_executable");
-    QString java_memory = "-Xmx" + QString::number(getIntOption_("java_memory")) + "m";
+    String java_memory = String("-Xmx") + String(getIntOption_("java_memory")) + "m";
 
     String executable = getStringOption_("executable");
 
@@ -189,11 +188,10 @@ protected:
     }
 
     // Normalize file path
-    QFileInfo file_info(QString::fromStdString(executable));
-    executable = file_info.canonicalFilePath().toStdString();
+    executable = File::absolutePath(executable);
 
     writeLogInfo_("Executable is: " + executable);
-    const QString & path_to_executable = QString::fromStdString(File::path(executable));
+    String path_to_executable = File::path(executable);
     
     //-------------------------------------------------------------
     // reading input
@@ -248,19 +246,21 @@ protected:
 
     String tmp_out = tmp_dir.getPath() + "tmp_out_novor.csv";
 
-    QStringList process_params;
-    process_params << java_memory
-                   << "-jar" << QString::fromStdString(executable)
-                   << "-f" 
-                   << "-o" << QString::fromStdString(tmp_out)
-                   << "-p" << QString::fromStdString(tmp_param)
-                   << QString::fromStdString(tmp_mgf);
+    std::vector<std::string> process_params;
+    process_params.push_back(static_cast<std::string>(java_memory));
+    process_params.push_back("-jar");
+    process_params.push_back(static_cast<std::string>(executable));
+    process_params.push_back("-f");
+    process_params.push_back("-o");
+    process_params.push_back(static_cast<std::string>(tmp_out));
+    process_params.push_back("-p");
+    process_params.push_back(static_cast<std::string>(tmp_param));
+    process_params.push_back(static_cast<std::string>(tmp_mgf));
 
 
     // print novor command line
-    std::vector<std::string> args;
-    for (auto a : process_params) args.push_back(a.toStdString());
-    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable, args, path_to_executable.toStdString());
+    std::vector<std::string> args = process_params;
+    TOPPBase::ExitCodes exit_code = runExternalProcess_(java_executable, args, static_cast<std::string>(path_to_executable));
     if (exit_code != EXECUTION_OK)
     {
       return exit_code;

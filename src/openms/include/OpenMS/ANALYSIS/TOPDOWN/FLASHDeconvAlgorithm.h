@@ -216,7 +216,7 @@ namespace OpenMS
     double mz_bin_min_value_;
 
     /// current ms Level
-    uint ms_level_;
+    UInt ms_level_;
 
     /// default precursor isolation window size.
     double isolation_window_size_;

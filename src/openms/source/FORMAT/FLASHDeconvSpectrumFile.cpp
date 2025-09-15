@@ -21,7 +21,7 @@ namespace OpenMS
   void FLASHDeconvSpectrumFile::writeDeconvolvedMasses(DeconvolvedSpectrum& dspec, DeconvolvedSpectrum& target_spec, std::fstream& fs, const String& file_name,
                                                        const FLASHDeconvHelperStructs::PrecalculatedAveragine& avg, double tol, const bool write_detail, const bool dummy)
   {
-    static std::vector<uint> indices {};
+    static std::vector<UInt> indices {};
 
     if (dspec.empty())
     {
@@ -32,7 +32,7 @@ namespace OpenMS
     {
       indices.push_back(1);
     }
-    uint& index = indices[dspec.getOriginalSpectrum().getMSLevel() - 1];
+    UInt& index = indices[dspec.getOriginalSpectrum().getMSLevel() - 1];
 
     for (auto& pg : dspec)
     {
@@ -208,7 +208,7 @@ namespace OpenMS
     }
   }
 
-  void FLASHDeconvSpectrumFile::writeDeconvolvedMassesHeader(std::fstream& fs, const uint ms_level, const bool detail, const bool dummy)
+  void FLASHDeconvSpectrumFile::writeDeconvolvedMassesHeader(std::fstream& fs, const UInt ms_level, const bool detail, const bool dummy)
   {
     if (detail)
     {
@@ -298,7 +298,7 @@ namespace OpenMS
     }
   }
 
-  void FLASHDeconvSpectrumFile::writeTopFD(DeconvolvedSpectrum& dspec, std::fstream& fs, const double snr_threshold, const uint min_ms_level, const bool randomize_precursor_mass,
+  void FLASHDeconvSpectrumFile::writeTopFD(DeconvolvedSpectrum& dspec, std::fstream& fs, const double snr_threshold, const UInt min_ms_level, const bool randomize_precursor_mass,
                                            const bool randomize_fragment_mass)
   {
     UInt ms_level = dspec.getOriginalSpectrum().getMSLevel();

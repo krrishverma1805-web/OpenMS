@@ -31,7 +31,7 @@ namespace OpenMS
       @param dummy if set true, dummy and qvalue information will be written.
        */
     static void writeDeconvolvedMassesHeader(std::fstream& fs,
-                                             uint ms_level,
+                                             UInt ms_level,
                                              bool detail,
                                              bool dummy);
 
@@ -77,7 +77,7 @@ namespace OpenMS
     //      @param avg averagine information to calculate monoisotopic and average mass difference
     static void writeTopFD(DeconvolvedSpectrum& dspec, std::fstream& fs,
                            double snr_threshold = 1.0,
-                           const uint min_ms_level = 1,
+                           const UInt min_ms_level = 1,
                            bool randomize_precursor_mass = false,
                            bool randomize_fragment_mass = false);
 

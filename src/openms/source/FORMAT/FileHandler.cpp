@@ -48,7 +48,7 @@
 #include <functional>
 #include <iomanip>
 #include <sstream>
-#include <boost/uuid/detail/sha1.hpp>
+#include <OpenMS/SYSTEM/SHA.h>
 
 using namespace std;
 
@@ -593,7 +593,7 @@ namespace OpenMS
       return "";
     }
 
-    boost::uuids::detail::sha1 sha;
+    OpenMS::SHA sha;
 
     char buffer[8192];
     for (;;)
@@ -615,7 +615,7 @@ namespace OpenMS
       }
     }
 
-    unsigned int digest[5] = {0, 0, 0, 0, 0};
+    OpenMS::SHA::digest_type digest = {0, 0, 0, 0, 0};
     sha.get_digest(digest);
 
     std::ostringstream oss;

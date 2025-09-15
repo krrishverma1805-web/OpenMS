@@ -31,6 +31,7 @@ SIMDe.h
 StopWatch.h
 SysInfo.h
 UpdateCheck.h
+SHA.h
 )
 
 ### add path to the filenames

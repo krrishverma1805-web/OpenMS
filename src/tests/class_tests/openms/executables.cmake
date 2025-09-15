@@ -128,6 +128,7 @@ set(system_executables_list
   PythonInfo_test
   StopWatch_test
   SysInfo_test
+  SHA_test
 )
 
 set(kernel_executables_list

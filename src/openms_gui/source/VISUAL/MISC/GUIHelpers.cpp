@@ -72,9 +72,9 @@ namespace OpenMS
     QString app_path;
 #if defined(__APPLE__)
     // check if we can find the TOPPView.app
-    app_path = QString::fromStdString(static_cast<const std::string&>(File::getExecutablePath() + "../../../TOPPView.app"));
+    app_path = QString::fromStdString(File::getExecutablePath() + "../../../TOPPView.app");
 
-    if (File::exists(app_path))
+    if (File::exists(app_path.toStdString()))
     {
       // we found the app
       QStringList app_args;

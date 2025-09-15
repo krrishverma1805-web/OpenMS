@@ -296,7 +296,7 @@ protected:
     auto out_topfd_feature_file = getStringList_("out_topFD_feature");
     double topFD_SNR_threshold = getDoubleOption_("min_precursor_snr");
     bool use_RNA_averagine = getIntOption_("use_RNA_averagine") > 0;
-    uint max_ms_level = getIntOption_("max_MS_level");
+    size_t max_ms_level = getIntOption_("max_MS_level");
     int forced_ms_level = getIntOption_("forced_MS_level");
     int merge = getIntOption_("merging_method");
     bool write_detail = getIntOption_("write_detail") > 0;
@@ -388,8 +388,8 @@ protected:
     mzml.setOptions(opt);
     mzml.loadExperiment(in_file, map, {FileTypes::MZML}, log_type_);
 
-    uint current_max_ms_level = 0;
-    uint current_min_ms_level = 1000;
+    size_t current_max_ms_level = 0;
+    size_t current_min_ms_level = 1000;
 
     auto spec_cntr = std::vector<size_t>(max_ms_level, 0);
     // spectrum number with at least one deconvolved mass per ms level per input file
@@ -422,7 +422,7 @@ protected:
         continue;
       }
 
-      uint ms_level = it.getMSLevel();
+      size_t ms_level = it.getMSLevel();
       current_max_ms_level = current_max_ms_level < ms_level ? ms_level : current_max_ms_level;
       current_min_ms_level = current_min_ms_level > ms_level ? ms_level : current_min_ms_level;
 
@@ -508,7 +508,7 @@ protected:
       merger.setParameters(sm_param);
       map.sortSpectra();
 
-      for (uint tmp_ms_level = current_min_ms_level; tmp_ms_level <= current_max_ms_level; tmp_ms_level++)
+      for (size_t tmp_ms_level = current_min_ms_level; tmp_ms_level <= current_max_ms_level; tmp_ms_level++)
       {
         merger.average(map, "gaussian", (int)tmp_ms_level);
       }
@@ -602,7 +602,7 @@ protected:
         continue;
       }
 
-      uint ms_level = it->getMSLevel();
+      size_t ms_level = it->getMSLevel();
       if (ms_level > current_max_ms_level)
       {
         continue;
@@ -779,7 +779,7 @@ protected:
 
     for (auto& deconvolved_spectrum : deconvolved_spectra)
     {
-      uint ms_level = deconvolved_spectrum.getOriginalSpectrum().getMSLevel();
+      size_t ms_level = deconvolved_spectrum.getOriginalSpectrum().getMSLevel();
       if (ms_level == 1)
       {
         mass_tracer.storeInformationFromDeconvolvedSpectrum(deconvolved_spectrum); // add deconvolved mass in mass_tracer
@@ -796,11 +796,11 @@ protected:
     }
     if (report_dummy)
     {
-      for (uint i = 0; i < dummy_deconvolved_spectra.size(); i++)
+      for (size_t i = 0; i < dummy_deconvolved_spectra.size(); i++)
       {
         auto dummy_deconvolved_spectrum = dummy_deconvolved_spectra[i];
         auto deconvolved_spectrum = deconvolved_spectra[i];
-        uint ms_level = deconvolved_spectrum.getOriginalSpectrum().getMSLevel();
+        size_t ms_level = deconvolved_spectrum.getOriginalSpectrum().getMSLevel();
 
         if (out_spec_streams.size() + 1 > ms_level)
         {
@@ -885,7 +885,7 @@ protected:
     }
     if (!out_topfd_feature_file.empty())
     {
-      uint j = 0;
+      size_t j = 0;
       for (auto& out_topfd_feature_stream : out_topfd_feature_streams)
       {
         out_topfd_feature_stream.close();
@@ -899,7 +899,7 @@ protected:
 
     if (!out_topfd_file.empty())
     {
-      uint j = 0;
+      size_t j = 0;
       for (auto& out_topfd_stream : out_topfd_streams)
       {
         out_topfd_stream.close();
@@ -912,7 +912,7 @@ protected:
     }
     if (!out_spec_file.empty())
     {
-      uint j = 0;
+      size_t j = 0;
       for (auto& out_spec_stream : out_spec_streams)
       {
         out_spec_stream.close();

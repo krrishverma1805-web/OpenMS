@@ -325,16 +325,16 @@ namespace OpenMS
                   {
                     const String& mod_name = aaseq[i].getModificationName();
 
-                    if (!mod_data.contains(QString::fromStdString(static_cast<const std::string&>(mod_name))))
+                    if (!mod_data.contains(QString::fromStdString(mod_name)))
                     {
-                      mod_data[QString::fromStdString(static_cast<const std::string&>(mod_name))] = QJsonArray{i + pep_start}; // add pep_start to get the correct location in the whole sequence
+                      mod_data[QString::fromStdString(mod_name)] = QJsonArray{i + pep_start}; // add pep_start to get the correct location in the whole sequence
                     }
                     else
                     {
-                      QJsonArray values = mod_data.value(QString::fromStdString(static_cast<const std::string&>(mod_name))).toArray();
+                      QJsonArray values = mod_data.value(QString::fromStdString(mod_name)).toArray();
                       // add pep_start to get the correct location in the whole sequence
-                      values.push_back(i + pep_start); 
-                      mod_data[QString::fromStdString(static_cast<const std::string&>(mod_name))] = values;
+                      values.push_back(i + pep_start);
+                      mod_data[QString::fromStdString(mod_name)] = values;
                     }
                   }
                 }

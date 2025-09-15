@@ -91,12 +91,14 @@ protected:
     ///////////////////////////////////
     String file_in = getStringOption_("in");
 
-    // make sure tmp is a directory with proper separator at the end (downstream methods simply do path + filename)
-    // (do not use QDir::separator(), since its platform specific (/ or \) while absolutePath() will always use '/')
-    String tmp_dir = File::absolutePath(getStringOption_("outputDirectory")).ensureLastChar('/');
-
+    /* make sure tmp is a directory with proper separator at the end (downstream methods simply do path + filename)
+       Treat empty outputDirectory ("") as current working directory for backward compatibility with QDir behavior. */
+    String out_dir = getStringOption_("outputDirectory");
+    if (out_dir.empty()) out_dir = ".";
+    String tmp_dir = File::absolutePath(out_dir).ensureLastChar('/');
+    
     String tmp = tmp_dir + FileHandler::stripExtension(File::basename(file_in));
-
+    
     String out_qc = getStringOption_("out_qc");
 
     ///////////////////////////////////

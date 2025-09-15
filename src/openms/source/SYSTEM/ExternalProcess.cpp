@@ -18,6 +18,12 @@
 #include <string>
 
 #ifdef _WIN32
+  // Force Boost.Process to use std::filesystem instead of boost::filesystem to avoid linking Boost.Filesystem on Windows
+  // This prevents unresolved externals like boost::filesystem::path_traits::convert(...)
+  // when only std::filesystem is desired and available with MSVC.
+  #ifndef BOOST_PROCESS_USE_STD_FS
+  #define BOOST_PROCESS_USE_STD_FS 1
+  #endif
   #include <boost/process.hpp>
   namespace bp = boost::process;
 #else

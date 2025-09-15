@@ -222,10 +222,10 @@ namespace OpenMS
     /// get minimum neagative isotope index
     int getMinNegativeIsotopeIndex() const;
     /// set index of this peak group
-    void setIndex(uint i);
+    void setIndex(size_t i);
 
     /// get index of this peak group
-    uint getIndex() const;
+    size_t getIndex() const;
 
     /// iterators for the signal LogMz peaks in this PeakGroup
     std::vector<FLASHDeconvHelperStructs::LogMzPeak>::const_iterator begin() const noexcept;
@@ -297,7 +297,7 @@ namespace OpenMS
     /// charge range
     int min_abs_charge_ = 0, max_abs_charge_ = -1;
     /// peak group index
-    uint index_ = 0;
+    size_t index_ = 0;
     /// scan number
     int scan_number_ = 0;
     /// is positive or not

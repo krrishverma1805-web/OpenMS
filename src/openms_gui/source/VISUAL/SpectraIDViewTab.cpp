@@ -295,7 +295,7 @@ namespace OpenMS
         QJsonArray peptides_data;
        
         //use data from the protein_to_peptide_id_map map and store the start/end position to the QJsonArray
-        for (auto pep_id_ptr : protein_to_peptide_id_map[current_accession])
+        for (auto pep_id_ptr : protein_to_peptide_id_map[current_accession.toStdString()])
         {
           const vector<PeptideHit>& pep_hits = pep_id_ptr->getHits();
 
@@ -306,7 +306,7 @@ namespace OpenMS
           {
             const vector<PeptideEvidence>& evidences = pep_hit.getPeptideEvidences();
             const AASequence& aaseq = pep_hit.getSequence();
-            const auto qstrseq = QString::fromStdString(static_cast<const std::string&>(aaseq.toString()));
+            const auto qstrseq = QString::fromStdString(aaseq.toString());
 
             for (const auto & evidence : evidences)
             {
@@ -314,7 +314,7 @@ namespace OpenMS
               QJsonObject pep_data_obj;
               int pep_start = evidence.getStart();
               int pep_end = evidence.getEnd();
-              if (QString::fromStdString(static_cast<const std::string&>(id_accession)) == current_accession)
+              if (QString::fromStdString(id_accession) == current_accession)
               {
                 // contains key-value of modName and vector of indices
                 QJsonObject mod_data;

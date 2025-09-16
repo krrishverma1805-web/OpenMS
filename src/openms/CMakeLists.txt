@@ -66,6 +66,7 @@ set(OPENMS_DEP_PRIVATE_LIBRARIES
   Boost::boost
   Boost::date_time
   Boost::iostreams
+  Boost::filesystem
   Boost::regex
   httplib::httplib
   GTE

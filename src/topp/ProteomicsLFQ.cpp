@@ -19,6 +19,7 @@
 #include <OpenMS/ANALYSIS/MAPMATCHING/MapAlignmentAlgorithmIdentification.h>
 #include <OpenMS/ANALYSIS/MAPMATCHING/MapAlignmentAlgorithmTreeGuided.h>
 #include <OpenMS/ANALYSIS/MAPMATCHING/MapAlignmentTransformer.h>
+#include <OpenMS/ANALYSIS/MAPMATCHING/PipEcho.h>
 #include <OpenMS/ANALYSIS/QUANTITATION/PeptideAndProteinQuant.h>
 #include <OpenMS/ANALYSIS/QUANTITATION/DDAWorkflowCommons.h>
 #include <OpenMS/APPLICATIONS/MapAlignerBase.h>
@@ -202,6 +203,11 @@ protected:
       "false: include unidentified features so they can be linked to identified ones (=match between runs).", false, false);
     setValidStrings_("targeted_only", ListUtils::create<String>("true,false"));
 
+    registerStringOption_("pip_echo", "<option>", "false",
+                          "Perform match between runs (MBR) via PIP-ECHO",
+                          false, false);
+    setValidStrings_("pip_echo", ListUtils::create<String>("true,false"));
+
     registerDoubleOption_("feature_with_id_min_score", "<p-value>", 0.0, "The minimum probability (e.g.: 0.25) an identified (=id targeted) feature must have to be kept for alignment and linking (0=no filter).", false, true);
     setMinFloat_("feature_with_id_min_score", 0.0);
     setMaxFloat_("feature_with_id_min_score", 1.0);
@@ -272,6 +278,10 @@ protected:
       fl_defaults.addTag(s, "advanced");
     }
 
+    // For PIP-ECHO:
+    Param pip_echo_defaults = PipEcho().getDefaults();
+    pip_echo_defaults.remove("distance_RT:max_difference"); // estimated from data
+
     Param pq_defaults = PeptideAndProteinQuant().getDefaults();
     // overwrite algorithm default, so we export everything (important for copying back MSstats results)
     pq_defaults.setValue("top:include_all", "true");
@@ -284,6 +294,7 @@ protected:
     combined.insert("Alignment:", ma_defaults);
     combined.insert("Linking:", fl_defaults);
     combined.insert("ProteinQuantification:", pq_defaults);
+    combined.insert("PipEcho:", pip_echo_defaults);
 
     registerFullParam_(combined);
   }
@@ -490,38 +501,42 @@ protected:
     }
   }
 
-  //-------------------------------------------------------------
-  // Link all features of this fraction
-  //-------------------------------------------------------------
-  /// this method will only be used during requantification.
+  /**
+   * Link all features of the given fraction.
+   *
+   * In other words, link multiple runs together into a ConsensusMap
+   * which, if seeding was performed earlier, will lead to ID transfer
+   * to those runs that are missing MS2 peaks.
+   */
   void link_(
-    vector<FeatureMap> & feature_maps, 
+    vector<FeatureMap>& feature_maps,
     double median_fwhm,
     double max_alignment_diff,
-    ConsensusMap & consensus_fraction
-  )
-  {
-    //since requantification only happens with 2+ maps, we do not need to check/skip,
-    //in case of a singleton fraction. Would throw an exception in linker.group
-
-    Param fl_param = getParam_().copy("Linking:", true);
-    writeDebug_("Parameters passed to feature grouping algorithm", fl_param, 3);
-
+    ConsensusMap& consensus_fraction
+  ) {
+    double max_rt_diff = 2.0 * max_alignment_diff + 2.0 * median_fwhm;
     writeDebug_("Linking: " + String(feature_maps.size()) + " features.", 1);
 
-    // grouping tolerance = max alignment error + median FWHM
-    FeatureGroupingAlgorithmQT linker;
-    fl_param.setValue("distance_RT:max_difference", 2.0 * max_alignment_diff + 2.0 * median_fwhm);
-    linker.setParameters(fl_param);      
-/*
-    FeatureGroupingAlgorithmKD linker;
-    fl_param.setValue("warp:rt_tol", 2.0 * max_alignment_diff + 2.0 * median_fwhm);
-    fl_param.setValue("link:rt_tol", 2.0 * max_alignment_diff + 2.0 * median_fwhm);
-    fl_param.setValue("link:mz_tol", 10.0);
-    fl_param.setValue("mz_unit", "ppm");
-    linker.setParameters(fl_param);      
-*/
-    linker.group(feature_maps, consensus_fraction);
+    if (getStringOption_("pip_echo") != "false") {
+      PipEcho linker;
+
+      Param pe_param = getParam_().copy("PipEcho:", true);
+      pe_param.setValue("distance_RT:max_difference", max_rt_diff);
+      writeDebug_("Parameters passed to the PIP-ECHO algorithm", pe_param, 3);
+
+      linker.setParameters(pe_param);
+      linker.group(feature_maps, consensus_fraction);
+    } else {
+      FeatureGroupingAlgorithmQT linker;
+
+      Param fl_param = getParam_().copy("Linking:", true);
+      fl_param.setValue("distance_RT:max_difference", max_rt_diff);
+      writeDebug_("Parameters passed to feature grouping algorithm", fl_param, 3);
+
+      linker.setParameters(fl_param);
+      linker.group(feature_maps, consensus_fraction);
+    }
+
     OPENMS_LOG_INFO << "Size of consensus fraction: " << consensus_fraction.size() << endl;
     assert(!consensus_fraction.empty());
   }
@@ -909,7 +924,9 @@ protected:
       FeatureMap seeds;
       seeds.setPrimaryMSRunPath({mz_file});
 
-      const bool targeted_only = getStringOption_("targeted_only") != "false";
+      const bool targeted_only =
+        getStringOption_("targeted_only") != "false" &&
+        getStringOption_("pip_echo") != "false";
 
       if (!targeted_only)
       {
@@ -933,7 +950,13 @@ protected:
 
       double feature_with_id_min_score = getDoubleOption_("feature_with_id_min_score");
       double feature_without_id_min_score = getDoubleOption_("feature_without_id_min_score");
-      const bool filter_by_quant_scores = (feature_with_id_min_score > 0.0) && (targeted_only ||(feature_without_id_min_score > 0.0));
+
+      const bool filter_by_quant_scores =
+        ( getStringOption_("pip_echo") == "false" &&
+          feature_with_id_min_score > 0.0) &&
+          (targeted_only || (feature_without_id_min_score > 0.0)
+        );
+
       if (filter_by_quant_scores)
       {
         OPENMS_LOG_INFO << "Adding offset peptides as quant. decoys." << std::endl;
@@ -1443,6 +1466,14 @@ protected:
           OPENMS_PRETTY_FUNCTION, "Triqler export for spectral counting data not supported. Please remove output file.");
       }
     }
+
+    if (getStringOption_("targeted_only") != "false" &&
+        getStringOption_("pip_echo") != "false")
+      {
+        throw Exception::InvalidParameter(__FILE__, __LINE__,
+                                          OPENMS_PRETTY_FUNCTION,
+                                          "pip_echo requires targeted_only to be false");
+      }
 
     //-------------------------------------------------------------
     // Experimental design: read or generate default

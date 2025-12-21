@@ -10,11 +10,11 @@ from cython.operator cimport dereference as deref, preincrement as inc
         
         Returns a dictionary mapping peptide sequences (as strings) to PeptideData objects.
         """
-        cdef libcpp_map[_String, PeptideAndProteinQuant_PeptideData] c_result
+        cdef libcpp_map[_String, _PeptideAndProteinQuant_PeptideData] c_result
         c_result = self.inst.get().getPeptideResultsAsStringKeys()
         
         result = {}
-        cdef libcpp_map[_String, PeptideAndProteinQuant_PeptideData].iterator it = c_result.begin()
+        cdef libcpp_map[_String, _PeptideAndProteinQuant_PeptideData].iterator it = c_result.begin()
         while it != c_result.end():
             key_str = <bytes>deref(it).first.c_str()
             
@@ -35,11 +35,11 @@ from cython.operator cimport dereference as deref, preincrement as inc
         
         Returns a dictionary mapping protein accessions (as strings) to ProteinData objects.
         """
-        cdef libcpp_map[_String, PeptideAndProteinQuant_ProteinData] c_result
+        cdef libcpp_map[_String, _PeptideAndProteinQuant_ProteinData] c_result
         c_result = self.inst.get().getProteinResultsAsStringKeys()
         
         result = {}
-        cdef libcpp_map[_String, PeptideAndProteinQuant_ProteinData].iterator it = c_result.begin()
+        cdef libcpp_map[_String, _PeptideAndProteinQuant_ProteinData].iterator it = c_result.begin()
         while it != c_result.end():
             key_str = <bytes>deref(it).first.c_str()
             

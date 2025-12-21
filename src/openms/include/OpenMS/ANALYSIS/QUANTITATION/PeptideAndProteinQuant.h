@@ -183,14 +183,8 @@ public:
     /// Get peptide abundance data
     const PeptideQuant& getPeptideResults();
 
-    /// Get peptide abundance data with String keys (for pyOpenMS)
-    std::map<String, PeptideData> getPeptideResultsAsStringKeys();
-
     /// Get protein abundance data
     const ProteinQuant& getProteinResults();
-
-    /// Get protein abundance data (for pyOpenMS, already has String keys)
-    std::map<String, ProteinData> getProteinResultsAsStringKeys();
 
     /// Annotate protein quant results as meta data to protein ids
     void annotateQuantificationsToProteins(

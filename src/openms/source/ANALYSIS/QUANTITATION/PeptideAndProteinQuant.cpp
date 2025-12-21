@@ -787,24 +787,6 @@ namespace OpenMS
     return prot_quant_;
   }
 
-  std::map<String, PeptideAndProteinQuant::PeptideData>
-  PeptideAndProteinQuant::getPeptideResultsAsStringKeys()
-  {
-    std::map<String, PeptideData> result;
-    for (const auto& p : pep_quant_)
-    {
-      result[p.first.toString()] = p.second;
-    }
-    return result;
-  }
-
-  std::map<String, PeptideAndProteinQuant::ProteinData>
-  PeptideAndProteinQuant::getProteinResultsAsStringKeys()
-  {
-    // ProteinQuant already uses String keys, so just return a copy
-    return prot_quant_;
-  }
-
   void PeptideAndProteinQuant::annotateQuantificationsToProteins(
     const ProteinQuant& protein_quants,
     ProteinIdentification& proteins,

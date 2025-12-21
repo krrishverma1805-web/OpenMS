@@ -60,6 +60,10 @@ cdef extern from "<OpenMS/ANALYSIS/QUANTITATION/PeptideAndProteinQuant.h>" names
         # ctypedef libcpp_map<AASequence, PeptideData] PeptideQuant
         # PeptideQuant getPeptideResults() except + nogil 
         # ProteinQuant getProteinResults() except + nogil 
+        
+        # Overloaded methods with String keys for pyOpenMS
+        libcpp_map[String, PeptideAndProteinQuant_PeptideData] getPeptideResultsAsStringKeys() except + nogil 
+        libcpp_map[String, PeptideAndProteinQuant_ProteinData] getProteinResultsAsStringKeys() except + nogil 
 
 cdef extern from "<OpenMS/ANALYSIS/QUANTITATION/PeptideAndProteinQuant.h>" namespace "OpenMS::PeptideAndProteinQuant":
 

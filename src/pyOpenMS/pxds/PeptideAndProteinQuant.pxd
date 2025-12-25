@@ -9,14 +9,7 @@ from Param cimport *
 from DefaultParamHandler cimport *
 from ProgressLogger cimport *
 from ProteinIdentification cimport *
-from AASequence cimport *
-
-cdef extern from "<OpenMS/ANALYSIS/QUANTITATION/PeptideAndProteinQuant.h>" namespace "OpenMS::PeptideAndProteinQuant":
-    # Forward declarations of nested types
-    ctypedef libcpp_map[AASequence, PeptideAndProteinQuant_PeptideData] PeptideQuant "OpenMS::PeptideAndProteinQuant::PeptideQuant"
-    ctypedef libcpp_map[AASequence, PeptideAndProteinQuant_PeptideData].iterator PeptideQuant_iterator "OpenMS::PeptideAndProteinQuant::PeptideQuant::iterator"
-    ctypedef libcpp_map[String, PeptideAndProteinQuant_ProteinData] ProteinQuant "OpenMS::PeptideAndProteinQuant::ProteinQuant"
-    ctypedef libcpp_map[String, PeptideAndProteinQuant_ProteinData].iterator ProteinQuant_iterator "OpenMS::PeptideAndProteinQuant::ProteinQuant::iterator"
+# ctypedef libcpp_map<UInt64, double> SampleAbundances;
 
 cdef extern from "<OpenMS/ANALYSIS/QUANTITATION/PeptideAndProteinQuant.h>" namespace "OpenMS":
 
@@ -63,10 +56,14 @@ cdef extern from "<OpenMS/ANALYSIS/QUANTITATION/PeptideAndProteinQuant.h>" names
 
         PeptideAndProteinQuant_Statistics getStatistics() except + nogil 
 
-        # These methods return maps with wrapped classes as keys/values
-        # They are manually wrapped in the addon file
-        PeptideQuant & getPeptideResults() except + nogil  # wrap-ignore
-        ProteinQuant & getProteinResults() except + nogil  # wrap-ignore
+        # Map types for results:
+        # - getProteinResults() returns std::map<String, ProteinData> 
+        #   This works with autowrap 0.24+ (String key + wrapped value)
+        # - getPeptideResults() returns std::map<AASequence, PeptideData>
+        #   This requires manual wrapping (wrapped key + wrapped value not supported)
+        
+        libcpp_map[String, PeptideAndProteinQuant_ProteinData] getProteinResults() except + nogil 
+        libcpp_map[AASequence, PeptideAndProteinQuant_PeptideData] getPeptideResults() except + nogil  # wrap-ignore
 
 cdef extern from "<OpenMS/ANALYSIS/QUANTITATION/PeptideAndProteinQuant.h>" namespace "OpenMS::PeptideAndProteinQuant":
 

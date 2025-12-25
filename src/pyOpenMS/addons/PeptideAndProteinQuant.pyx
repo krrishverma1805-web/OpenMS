@@ -1,5 +1,6 @@
 from libcpp.map cimport map as libcpp_map
 from cython.operator cimport dereference as deref, preincrement as inc
+from AASequence cimport AASequence
 
 
     def getPeptideResults(self):
@@ -9,47 +10,33 @@ from cython.operator cimport dereference as deref, preincrement as inc
         Get peptide abundance data.
         
         Returns a dictionary mapping peptide sequences (as strings) to PeptideData objects.
+        
+        Note: This method manually wraps the C++ getPeptideResults() which returns
+        std::map<AASequence, PeptideData>. Since autowrap 0.24 doesn't support maps
+        with wrapped classes as both keys and values, we convert AASequence keys to strings.
         """
-        # Get the C++ map (returned by reference)
-        cdef PeptideQuant _r = self.inst.get().getPeptideResults()
-        py_result = dict()
-        cdef PeptideQuant_iterator it__r = _r.begin()
-        cdef PeptideAndProteinQuant_PeptideData item_py_result
+        # Call C++ method directly - it returns std::map<AASequence, PeptideData>
+        cdef libcpp_map[AASequence, PeptideAndProteinQuant_PeptideData] cpp_result
+        cpp_result = self.inst.get().getPeptideResults()
+        
+        # Convert to Python dict with string keys
+        py_result = {}
+        cdef libcpp_map[AASequence, PeptideAndProteinQuant_PeptideData].iterator it = cpp_result.begin()
+        cdef PeptideAndProteinQuant_PeptideData item_result
         cdef AASequence key_seq
-        while it__r != _r.end():
-            # Get the AASequence key and convert to string
-            key_seq = deref(it__r).first
+        
+        while it != cpp_result.end():
+            # Get AASequence key and convert to string
+            key_seq = deref(it).first
             key_str = key_seq.toString()
             
-            # Create Python wrapper for PeptideData value
-            item_py_result = PeptideAndProteinQuant_PeptideData.__new__(PeptideAndProteinQuant_PeptideData)
-            item_py_result.inst = shared_ptr[_PeptideAndProteinQuant_PeptideData](new _PeptideAndProteinQuant_PeptideData(deref(it__r).second))
+            # Wrap PeptideData value
+            item_result = PeptideAndProteinQuant_PeptideData.__new__(PeptideAndProteinQuant_PeptideData)
+            item_result.inst = shared_ptr[_PeptideAndProteinQuant_PeptideData](
+                new _PeptideAndProteinQuant_PeptideData(deref(it).second)
+            )
             
-            py_result[(<bytes>key_str.c_str()).decode('utf-8')] = item_py_result
-            inc(it__r)
-        return py_result
-
-    def getProteinResults(self):
-        """
-        getProteinResults(self: PeptideAndProteinQuant) -> dict
+            py_result[(<bytes>key_str.c_str()).decode('utf-8')] = item_result
+            inc(it)
         
-        Get protein abundance data.
-        
-        Returns a dictionary mapping protein accessions (as strings) to ProteinData objects.
-        """
-        # Get the C++ map (returned by reference)
-        cdef ProteinQuant _r = self.inst.get().getProteinResults()
-        py_result = dict()
-        cdef ProteinQuant_iterator it__r = _r.begin()
-        cdef PeptideAndProteinQuant_ProteinData item_py_result
-        while it__r != _r.end():
-            # Get the String key and convert to Python string
-            key_str = <bytes>deref(it__r).first.c_str()
-            
-            # Create Python wrapper for ProteinData value
-            item_py_result = PeptideAndProteinQuant_ProteinData.__new__(PeptideAndProteinQuant_ProteinData)
-            item_py_result.inst = shared_ptr[_PeptideAndProteinQuant_ProteinData](new _PeptideAndProteinQuant_ProteinData(deref(it__r).second))
-            
-            py_result[key_str.decode('utf-8')] = item_py_result
-            inc(it__r)
         return py_result

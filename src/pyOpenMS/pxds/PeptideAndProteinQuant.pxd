@@ -9,6 +9,7 @@ from Param cimport *
 from DefaultParamHandler cimport *
 from ProgressLogger cimport *
 from ProteinIdentification cimport *
+from AASequence cimport *
 # ctypedef libcpp_map<UInt64, double> SampleAbundances;
 
 cdef extern from "<OpenMS/ANALYSIS/QUANTITATION/PeptideAndProteinQuant.h>" namespace "OpenMS":
@@ -54,16 +55,10 @@ cdef extern from "<OpenMS/ANALYSIS/QUANTITATION/PeptideAndProteinQuant.h>" names
                 #  
                 #  Peptide abundances must be computed first with quantifyPeptides(). Optional protein inference information (e.g. from Fido or ProteinProphet) can be supplied via `proteins`
 
-        PeptideAndProteinQuant_Statistics getStatistics() except + nogil 
+        PeptideAndProteinQuant_Statistics getStatistics() except + nogil
 
-        # Map types for results:
-        # - getProteinResults() returns std::map<String, ProteinData> 
-        #   This works with autowrap 0.24+ (String key + wrapped value)
-        # - getPeptideResults() returns std::map<AASequence, PeptideData>
-        #   This requires manual wrapping (wrapped key + wrapped value not supported)
-        
-        libcpp_map[String, PeptideAndProteinQuant_ProteinData] getProteinResults() except + nogil 
-        libcpp_map[AASequence, PeptideAndProteinQuant_PeptideData] getPeptideResults() except + nogil  # wrap-ignore
+        libcpp_map[String, PeptideAndProteinQuant_ProteinData] getProteinResults() except + nogil
+        libcpp_map[AASequence, PeptideAndProteinQuant_PeptideData] getPeptideResults() except + nogil
 
 cdef extern from "<OpenMS/ANALYSIS/QUANTITATION/PeptideAndProteinQuant.h>" namespace "OpenMS::PeptideAndProteinQuant":
 

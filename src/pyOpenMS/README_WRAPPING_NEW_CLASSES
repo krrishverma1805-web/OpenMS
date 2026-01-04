@@ -85,6 +85,25 @@ means you forgot to add the copy constructor in the class XXX and it is expected
   When using this directive, you must provide both __init__ (to get the singleton instance)
   and __dealloc__ (typically just 'pass' to prevent deleting the singleton instance).
 
+= Container Type Support (autowrap 0.25+)
+
+Autowrap supports automatic conversion of STL containers. Use libcpp types in pxd declarations:
+
+- libcpp_vector[T] -> Python list
+- libcpp_set[T] -> Python set
+- libcpp_map[K, V] -> Python dict
+
+For libcpp_map, autowrap 0.25+ supports maps where both key AND value are wrapped
+OpenMS classes. This means you can directly expose methods like:
+
+    libcpp_map[AASequence, PeptideData] getPeptideResults() except + nogil
+    libcpp_map[String, ProteinData] getProteinResults() except + nogil
+
+Both will be automatically converted to Python dicts with proper object wrapping.
+No manual addon code is required for such methods.
+
+Example: See PeptideAndProteinQuant.pxd for getPeptideResults() and getProteinResults().
+
 = Wrapping classes with deleted or private constructors
 
 Some OpenMS classes have deleted or private default constructors and/or copy constructors.

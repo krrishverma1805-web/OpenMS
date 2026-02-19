@@ -1580,6 +1580,24 @@ bool FeatureMapArrowIO::importPSMsFromArrow(
     }
   }
 
+  // Add top-level features to the FeatureMap (preserving original order by row_index)
+  // First, collect top-level entries sorted by row_index
+  std::vector<size_t> top_level_indices;
+  for (size_t i = 0; i < entries.size(); ++i)
+  {
+    if (entries[i].parent_id == -1)
+    {
+      top_level_indices.push_back(i);
+    }
+  }
+  std::sort(top_level_indices.begin(), top_level_indices.end(),
+    [&](size_t a, size_t b) { return entries[a].row_index < entries[b].row_index; });
+
+  for (size_t idx : top_level_indices)
+  {
+    feature_map.push_back(std::move(entries[idx].feature));
+  }
+
   return true;
 }
 

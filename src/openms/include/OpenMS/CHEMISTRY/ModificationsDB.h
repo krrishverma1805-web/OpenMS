@@ -59,6 +59,13 @@ public:
     /// The IO layer registers UnimodXMLFile::load() via a static initializer.
     static void registerUnimodLoader(UnimodLoaderFunc loader);
 
+    /// Callback type for IO-layer populators that load modification data.
+    using PopulatorFunc = std::function<void(ModificationsDB&)>;
+
+    /// Register a populator callback that will be called after the DB is constructed.
+    /// The IO layer uses this to load modification files (unimod, PSI-MOD, XLMOD, etc.).
+    static void registerPopulator(PopulatorFunc fn);
+
     /// Returns a pointer to the modifications DB (singleton)
     static ModificationsDB* getInstance();
 
@@ -220,6 +227,18 @@ public:
     /// Writes tab separated entries: FullId,FullName,Origin,AA,TerminusSpecificity,DiffMonoMass (including header) to TSV file
     void writeTSV(const String& filename);
 
+    /// Returns the Unimod XML file path this DB was configured with
+    const String& getUnimodFile() const { return unimod_file_; }
+
+    /// Returns the custom modifications file path this DB was configured with
+    const String& getCustomModFile() const { return custommod_file_; }
+
+    /// Returns the PSI-MOD OBO file path this DB was configured with
+    const String& getPsiModFile() const { return psimod_file_; }
+
+    /// Returns the XLMOD OBO file path this DB was configured with
+    const String& getXlModFile() const { return xlmod_file_; }
+
   protected:
 
     /// Stores whether ModificationsDB was instantiated before
@@ -230,6 +249,12 @@ public:
 
     /// Stores the mappings of (unique) names to the modifications
     std::unordered_map<String, std::set<const ResidueModification*> > modification_names_;
+
+    /// File paths configured at construction time (used by IO populator)
+    String unimod_file_;
+    String custommod_file_;
+    String psimod_file_;
+    String xlmod_file_;
 
     /** @brief Helper function to check if a residue matches the origin for a modification
      *
@@ -280,14 +305,19 @@ private:
     */
     const ResidueModification* addNewModification_(const ResidueModification& new_mod);
 
+  public:
     /**
        @brief Adds modifications from a given file in OBO format
+
+       This method uses only Core types (ifstream, String, ResidueModification) and
+       does not depend on the IO layer.
 
        @throw Exception::ParseError if the file cannot be parsed correctly
     */
     void readFromOBOFile(const String& filename);
 
-    /// Adds modifications from a given file in Unimod XML format
+    /// Adds modifications from a given file in Unimod XML format.
+    /// Requires a Unimod loader callback to be registered (see registerUnimodLoader).
     void readFromUnimodXMLFile(const String& filename);
   };
 }

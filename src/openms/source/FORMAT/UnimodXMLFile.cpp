@@ -18,7 +18,10 @@ namespace OpenMS
 {
 
   // Register UnimodXMLFile::load() as the Unimod loader callback so that
-  // ModificationsDB (in Core) can load Unimod XML without depending on IO.
+  // ModificationsDB::readFromUnimodXMLFile() (in Core) can load Unimod XML
+  // without depending on IO directly.
+  // Note: The actual file loading is triggered by ModificationsDBLoader's populator,
+  // but readFromUnimodXMLFile() still uses this callback internally.
   static const bool unimod_loader_registered_ = []() {
     ModificationsDB::registerUnimodLoader([](const String& filename, std::vector<ResidueModification*>& mods) {
       UnimodXMLFile().load(filename, mods);

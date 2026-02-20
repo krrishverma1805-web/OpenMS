@@ -15,6 +15,7 @@
 #include <OpenMS/DATASTRUCTURES/String.h>
 #include <OpenMS/SYSTEM/File.h>
 
+#include <functional>
 #include <set>
 #include <map>
 
@@ -28,6 +29,10 @@ namespace OpenMS
     Template parameters:
     @p DigestionEnzymeType should be a subclass of DigestionEnzyme.
     @p InstanceType should be a subclass of DigestionEnzymeDB ("Curiously Recurring Template Pattern", see https://stackoverflow.com/a/34519373).
+
+    Subclasses define built-in enzyme data in their constructors. The IO layer can
+    register a populator callback via registerPopulator() to load additional enzyme
+    definitions from XML files after the DB is constructed.
   */
   template<typename DigestionEnzymeType, typename InstanceType> class DigestionEnzymeDB
   {
@@ -38,7 +43,16 @@ namespace OpenMS
     //@{
     typedef typename std::set<const DigestionEnzymeType*>::const_iterator ConstEnzymeIterator;
     typedef typename std::set<const DigestionEnzymeType*>::iterator EnzymeIterator;
+    /// Callback type for IO-layer populators that extend the DB after construction.
+    using PopulatorFunc = std::function<void(InstanceType&)>;
     //@}
+
+    /// Register a populator callback that will be called after the DB is constructed.
+    /// The IO layer uses this to load enzyme definitions from XML files.
+    static void registerPopulator(PopulatorFunc fn)
+    {
+      getPopulator_() = std::move(fn);
+    }
 
     /// this member function serves as a replacement of the constructor
     static InstanceType* getInstance()
@@ -47,8 +61,17 @@ namespace OpenMS
       if (db_ == nullptr)
       {
         db_ = new InstanceType;
+        auto& pop = getPopulator_();
+        if (pop) pop(*db_);
       }
       return db_;
+    }
+
+    /// Add an enzyme to the DB. Takes ownership of the pointer.
+    /// If an enzyme with the same name already exists, it is replaced.
+    void addEnzyme(const DigestionEnzymeType* enzyme)
+    {
+      addEnzyme_(enzyme);
     }
 
     /** @name Constructors and Destructors
@@ -134,13 +157,7 @@ namespace OpenMS
 
     //@}
   protected:
-    DigestionEnzymeDB(const String& db_file = "")
-    {
-      if (!db_file.empty())
-      {
-        readEnzymesFromFile_(db_file);
-      }
-    }
+    DigestionEnzymeDB() = default;
 
     ///copy constructor
     DigestionEnzymeDB(const DigestionEnzymeDB& enzymes_db) = delete;
@@ -152,87 +169,6 @@ namespace OpenMS
     /// assignment operator
     DigestionEnzymeDB& operator=(const DigestionEnzymeDB& enzymes_db) = delete;
     //@}
-
-    /**
-     * @brief Reads enzymes from the given file if it exists
-     * 
-     * @return true if file was found and loaded successfully, false if file was not found
-     * @note Only FileNotFound exceptions are caught. ParseError exceptions are intentionally
-     *       re-thrown to indicate XML parsing issues with an existing file.
-     */
-    bool readEnzymesFromFileIfPresent_(const String& filename)
-    {
-      try
-      {
-        readEnzymesFromFile_(filename);
-        return true;
-      }
-      catch (Exception::FileNotFound&)
-      {
-        // file not found - that's OK, we will use built-in enzymes
-        return false;
-      }
-    }
-
-    /// reads enzymes from the given file
-    void readEnzymesFromFile_(const String& filename)
-    {
-      String file = File::find(filename);
-
-      Param param;
-      File::loadParamXML(file, param);
-      if (param.empty()) return;
-
-      std::vector<String> split;
-      String(param.begin().getName()).split(':', split);
-      if (split[0] != "Enzymes")
-      {
-        throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, split[0], "name 'Enzymes' expected");
-      }
-
-      try
-      {
-        std::map<String, String> values;
-        String previous_enzyme = split[1];
-        // this iterates over all the "ITEM" elements in the XML file:
-        for (Param::ParamIterator it = param.begin(); it != param.end(); ++it)
-        {
-          String(it.getName()).split(':', split);
-          if (split[0] != "Enzymes") break; // unexpected content in the XML file
-          if (split[1] != previous_enzyme)
-          {
-            // add enzyme and reset:
-            addEnzyme_(parseEnzyme_(values));
-            previous_enzyme = split[1];
-            values.clear();
-          }
-          values[it.getName()] = String(it->value.toString());
-        }
-        // add last enzyme
-        addEnzyme_(parseEnzyme_(values));
-      }
-      catch (Exception::BaseException& e)
-      {
-        throw Exception::ParseError(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION, e.what(), "");
-      }
-    }
-
-    /// parses an enzyme, given the key/value pairs from an XML file
-    const DigestionEnzymeType* parseEnzyme_(std::map<String, String>& values) const
-    {
-      DigestionEnzymeType* enzy_ptr = new DigestionEnzymeType();
-
-      for (std::map<String, String>::iterator it = values.begin(); it != values.end(); ++it)
-      {
-        const String& key = it->first;
-        const String& value = it->second;
-        if (!enzy_ptr->setValueFromFile(key, value))
-        {
-          OPENMS_LOG_ERROR << "Error while parsing enzymes file: unknown key '" << key << "' with value '" << value << "'" << std::endl;
-        }
-      }
-      return enzy_ptr;
-    }
 
     /// add to internal data; also update indices for search by name and regex.
     /// If an enzyme with the same name already exists, it is replaced.
@@ -285,6 +221,13 @@ namespace OpenMS
 
     std::set<const DigestionEnzymeType*> const_enzymes_; ///< set of enzymes
 
+  private:
+    /// Returns a reference to the static populator callback for this DB type.
+    static PopulatorFunc& getPopulator_()
+    {
+      static PopulatorFunc populator;
+      return populator;
+    }
+
   };
 }
-

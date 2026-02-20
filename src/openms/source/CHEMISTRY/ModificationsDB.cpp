@@ -36,6 +36,18 @@ namespace OpenMS
     getUnimodLoaderCallback_() = std::move(loader);
   }
 
+  /// Static callback for populator, registered by IO layer
+  static ModificationsDB::PopulatorFunc& getPopulatorCallback_()
+  {
+    static ModificationsDB::PopulatorFunc callback;
+    return callback;
+  }
+
+  void ModificationsDB::registerPopulator(PopulatorFunc fn)
+  {
+    getPopulatorCallback_() = std::move(fn);
+  }
+
   bool ModificationsDB::residuesMatch_(const char residue, const ResidueModification* curr_mod) const
   {
     const char origin = curr_mod->getOrigin();
@@ -66,7 +78,13 @@ namespace OpenMS
 
   ModificationsDB* ModificationsDB::getInstance()
   {
-    static ModificationsDB* db_ = ModificationsDB::initializeModificationsDB();
+    static ModificationsDB* db_ = nullptr;
+    if (db_ == nullptr)
+    {
+      db_ = ModificationsDB::initializeModificationsDB();
+      auto& pop = getPopulatorCallback_();
+      if (pop) pop(*db_);
+    }
     return db_;
   }
 
@@ -82,27 +100,15 @@ namespace OpenMS
     return db_;
   }
 
-  ModificationsDB::ModificationsDB(const OpenMS::String& unimod_file, const OpenMS::String& custommod_file, const OpenMS::String& psimod_file, const OpenMS::String& xlmod_file)
+  ModificationsDB::ModificationsDB(const OpenMS::String& unimod_file, const OpenMS::String& custommod_file, const OpenMS::String& psimod_file, const OpenMS::String& xlmod_file) :
+    unimod_file_(unimod_file),
+    custommod_file_(custommod_file),
+    psimod_file_(psimod_file),
+    xlmod_file_(xlmod_file)
   {
-    if (!unimod_file.empty())
-    {
-      readFromUnimodXMLFile(unimod_file);
-    }
-
-    if(!custommod_file.empty())
-    {
-      readFromUnimodXMLFile(custommod_file); 
-    }
-
-    if (!psimod_file.empty())
-    {
-      readFromOBOFile(psimod_file);
-    }
-
-    if (!xlmod_file.empty())
-    {
-      readFromOBOFile(xlmod_file);
-    }
+    // File loading is now handled by the IO-layer populator (ModificationsDBLoader)
+    // which is called after construction by getInstance().
+    // The constructor just stores the configured file paths.
     is_instantiated_ = true;
   }
 

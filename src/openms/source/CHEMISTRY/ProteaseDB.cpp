@@ -14,13 +14,11 @@ using namespace std;
 namespace OpenMS
 {
   ProteaseDB::ProteaseDB():
-    DigestionEnzymeDB<DigestionEnzymeProtein, ProteaseDB>()  // no file - we'll add built-in enzymes first
+    DigestionEnzymeDB<DigestionEnzymeProtein, ProteaseDB>()
   {
-    // Add built-in enzymes
     addBuiltInEnzymes_();
-    
-    // Try to load from file if present (allows user customization/extension)
-    readEnzymesFromFileIfPresent_("CHEMISTRY/Enzymes.xml");
+    // XML loading (CHEMISTRY/Enzymes.xml) is handled by ProteaseDBLoader in the IO layer
+    // via registerPopulator(), which is called after construction by getInstance().
   }
 
   void ProteaseDB::addBuiltInEnzymes_()

@@ -21,7 +21,8 @@ namespace OpenMS
 
     @brief Database for enzymes that digest RNA (RNases)
 
-    The enzymes stored in this DB are defined in an XML file under "share/CHEMISTRY/Enzymes_RNA.xml".
+    The enzymes stored in this DB are defined as built-in defaults. Additional
+    user-defined enzymes can be loaded from share/CHEMISTRY/Enzymes_RNA.xml if present.
   */
   class OPENMS_DLLAPI RNaseDB: public DigestionEnzymeDB<DigestionEnzymeRNA, RNaseDB>
   {
@@ -31,6 +32,9 @@ namespace OpenMS
   protected:
     /// constructor
     RNaseDB();
+
+    /// adds built-in RNA enzymes
+    void addBuiltInEnzymes_();
   };
 }
 

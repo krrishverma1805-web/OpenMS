@@ -44,6 +44,7 @@ MSPFile.cpp
 MSPGenericFile.cpp
 MSstatsFile.cpp
 MascotGenericFile.cpp
+ModificationsDBLoader.cpp
 MascotRemoteQuery.cpp
 MascotXMLFile.cpp
 MsInspectFile.cpp
@@ -76,8 +77,10 @@ PepXMLFile.cpp
 PepXMLFileMascot.cpp
 PercolatorInfile.cpp
 PercolatorOutfile.cpp
+ProteaseDBLoader.cpp
 ProtXMLFile.cpp
 QcMLFile.cpp
+RNaseDBLoader.cpp
 SequestInfile.cpp
 SequestOutfile.cpp
 SpecArrayFile.cpp

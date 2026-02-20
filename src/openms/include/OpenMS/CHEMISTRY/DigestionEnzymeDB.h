@@ -11,8 +11,8 @@
 #include <OpenMS/CHEMISTRY/DigestionEnzyme.h>
 #include <OpenMS/CONCEPT/Exception.h>
 #include <OpenMS/CONCEPT/LogStream.h>
+#include <OpenMS/DATASTRUCTURES/Param.h>
 #include <OpenMS/DATASTRUCTURES/String.h>
-#include <OpenMS/FORMAT/ParamXMLFile.h>
 #include <OpenMS/SYSTEM/File.h>
 
 #include <set>
@@ -180,7 +180,7 @@ namespace OpenMS
       String file = File::find(filename);
 
       Param param;
-      ParamXMLFile().load(file, param);
+      File::loadParamXML(file, param);
       if (param.empty()) return;
 
       std::vector<String> split;

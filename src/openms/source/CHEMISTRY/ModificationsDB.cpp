@@ -10,7 +10,6 @@
 #include <OpenMS/CHEMISTRY/ResidueModification.h>
 #include <OpenMS/CHEMISTRY/ModificationsDB.h>
 
-#include <OpenMS/FORMAT/UnimodXMLFile.h>
 #include <OpenMS/SYSTEM/File.h>
 #include <OpenMS/CHEMISTRY/Residue.h>
 #include <OpenMS/CONCEPT/LogStream.h>
@@ -24,6 +23,18 @@ using namespace std;
 
 namespace OpenMS
 {
+
+  /// Static callback for loading Unimod XML, registered by IO layer
+  static ModificationsDB::UnimodLoaderFunc& getUnimodLoaderCallback_()
+  {
+    static ModificationsDB::UnimodLoaderFunc callback;
+    return callback;
+  }
+
+  void ModificationsDB::registerUnimodLoader(UnimodLoaderFunc loader)
+  {
+    getUnimodLoaderCallback_() = std::move(loader);
+  }
 
   bool ModificationsDB::residuesMatch_(const char residue, const ResidueModification* curr_mod) const
   {
@@ -470,7 +481,13 @@ namespace OpenMS
   void ModificationsDB::readFromUnimodXMLFile(const String& filename)
   {
     vector<ResidueModification*> new_mods;
-    UnimodXMLFile().load(filename, new_mods);
+    auto& loader = getUnimodLoaderCallback_();
+    if (!loader)
+    {
+      throw Exception::MissingInformation(__FILE__, __LINE__, OPENMS_PRETTY_FUNCTION,
+        "No Unimod XML loader registered. The IO library must be linked.");
+    }
+    loader(filename, new_mods);
 
     for (auto & m : new_mods)
     {

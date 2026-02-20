@@ -846,8 +846,8 @@ std::shared_ptr<arrow::Table> ConsensusMapArrowIO::exportFeaturesToArrow(
 
   #undef RESERVE_OR_RETURN
 
-  // No metavalue keys to exclude
-  static const std::unordered_set<std::string> excluded_mvs = {};
+  // Exclude FWHM from metavalues (it is already stored as the dedicated 'width' column)
+  static const std::unordered_set<std::string> excluded_mvs = {"FWHM"};
 
   for (const auto& cf : cmap)
   {

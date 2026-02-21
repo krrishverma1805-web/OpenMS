@@ -398,9 +398,95 @@ namespace // anonymous
     return result;
   }
 
+  // ==================== MetaInfoInterface JSON helpers ====================
+
+  /// Serialize MetaInfoInterface metavalues to a JSON array string.
+  std::string serializeMetaValues_(const MetaInfoInterface& mii)
+  {
+    std::string json = "[";
+    std::vector<String> keys;
+    mii.getKeys(keys);
+    bool first = true;
+    for (const auto& key : keys)
+    {
+      if (!first) json += ",";
+      const DataValue& val = mii.getMetaValue(key);
+      std::string type_str;
+      switch (val.valueType())
+      {
+        case DataValue::INT_VALUE: type_str = "int"; break;
+        case DataValue::DOUBLE_VALUE: type_str = "float"; break;
+        case DataValue::STRING_VALUE: type_str = "str"; break;
+        default: type_str = "str"; break;
+      }
+      json += "{\"name\":\"" + escapeJsonString_(std::string(key))
+            + "\",\"value\":\"" + escapeJsonString_(val.toString())
+            + "\",\"type\":\"" + type_str + "\"}";
+      first = false;
+    }
+    json += "]";
+    return json;
+  }
+
+  /// Deserialize a JSON array of {name, value, type} objects into a MetaInfoInterface.
+  void deserializeMetaValues_(const std::string& json, MetaInfoInterface& target)
+  {
+    if (json.empty()) return;
+
+    size_t pos = 0;
+    skipWhitespace_(json, pos);
+    if (pos >= json.size() || json[pos] != '[') return;
+    ++pos;
+
+    while (pos < json.size())
+    {
+      skipWhitespace_(json, pos);
+      if (pos >= json.size() || json[pos] == ']') break;
+      if (json[pos] == ',') { ++pos; continue; }
+      if (json[pos] != '{') break;
+      ++pos;
+
+      std::string mv_name, mv_value, mv_type;
+      while (pos < json.size())
+      {
+        skipWhitespace_(json, pos);
+        if (pos >= json.size() || json[pos] == '}') { ++pos; break; }
+        if (json[pos] == ',') { ++pos; continue; }
+
+        std::string mk = parseJsonString_(json, pos);
+        skipWhitespace_(json, pos);
+        if (pos < json.size() && json[pos] == ':') ++pos;
+        skipWhitespace_(json, pos);
+
+        if (mk == "name") mv_name = parseJsonString_(json, pos);
+        else if (mk == "value") mv_value = parseJsonString_(json, pos);
+        else if (mk == "type") mv_type = parseJsonString_(json, pos);
+        else parseJsonString_(json, pos);
+      }
+
+      if (!mv_name.empty())
+      {
+        if (mv_type == "int")
+        {
+          try { target.setMetaValue(mv_name, DataValue(std::stoi(mv_value))); }
+          catch (...) { target.setMetaValue(mv_name, DataValue(mv_value)); }
+        }
+        else if (mv_type == "float")
+        {
+          try { target.setMetaValue(mv_name, DataValue(std::stod(mv_value))); }
+          catch (...) { target.setMetaValue(mv_name, DataValue(mv_value)); }
+        }
+        else
+        {
+          target.setMetaValue(mv_name, DataValue(mv_value));
+        }
+      }
+    }
+  }
+
   // ==================== Column header JSON helpers ====================
 
-  /// Serialize ConsensusMap column headers to a JSON string.
+  /// Serialize ConsensusMap column headers to a JSON string (including metavalues).
   std::string serializeColumnHeaders_(const ConsensusMap::ColumnHeaders& headers)
   {
     std::string json = "[";
@@ -413,6 +499,7 @@ namespace // anonymous
             + ",\"label\":\"" + escapeJsonString_(header.label) + "\""
             + ",\"size\":" + std::to_string(header.size)
             + ",\"unique_id\":" + std::to_string(header.unique_id)
+            + ",\"metavalues\":" + serializeMetaValues_(header)
             + "}";
       first = false;
     }
@@ -463,6 +550,24 @@ namespace // anonymous
           if (key == "map_index") map_index = std::stoull(num_str);
           else if (key == "size") header.size = std::stoull(num_str);
           else if (key == "unique_id") header.unique_id = std::stoull(num_str);
+        }
+        else if (key == "metavalues")
+        {
+          // Parse the nested metavalues array inline
+          // Find the matching ']' to extract the substring for deserializeMetaValues_
+          if (pos < json.size() && json[pos] == '[')
+          {
+            size_t start = pos;
+            int depth = 0;
+            while (pos < json.size())
+            {
+              if (json[pos] == '[') ++depth;
+              else if (json[pos] == ']') { --depth; if (depth == 0) { ++pos; break; } }
+              else if (json[pos] == '"') { ++pos; while (pos < json.size() && json[pos] != '"') { if (json[pos] == '\\') ++pos; ++pos; } }
+              ++pos;
+            }
+            deserializeMetaValues_(json.substr(start, pos - start), header);
+          }
         }
         else
         {
@@ -1035,6 +1140,8 @@ bool ConsensusMapArrowIO::exportToParquet(
   cmap_metadata["loaded_file_path"] = cmap.getLoadedFilePath();
   cmap_metadata["loaded_file_type"] = FileTypes::typeToName(cmap.getLoadedFileType());
   cmap_metadata["data_processing"] = serializeDataProcessing_(cmap.getDataProcessing());
+  cmap_metadata["unique_id"] = std::to_string(cmap.getUniqueId());
+  cmap_metadata["cmap_metavalues"] = serializeMetaValues_(cmap);
 
   if (!writeArrowTableToParquet_(features_table, directory + "/consensus_features.parquet",
                                   "consensus_features", config, cmap_metadata))
@@ -1421,6 +1528,19 @@ bool ConsensusMapArrowIO::importFromParquet(
     if (idx >= 0)
     {
       cmap.setDataProcessing(deserializeDataProcessing_(schema_md->value(idx)));
+    }
+
+    idx = schema_md->FindKey("unique_id");
+    if (idx >= 0)
+    {
+      try { cmap.setUniqueId(std::stoull(schema_md->value(idx))); }
+      catch (...) {}
+    }
+
+    idx = schema_md->FindKey("cmap_metavalues");
+    if (idx >= 0)
+    {
+      deserializeMetaValues_(schema_md->value(idx), cmap);
     }
   }
 

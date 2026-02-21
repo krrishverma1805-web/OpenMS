@@ -481,6 +481,9 @@ START_SECTION(exportToParquet / importFromParquet - full round-trip)
 
   cmap.setExperimentType("label-free");
 
+  // --- Set ConsensusMap-level UniqueId ---
+  cmap.setUniqueId(55555);
+
   // --- ProteinIdentification ---
   ProteinIdentification prot_id;
   prot_id.setIdentifier("run_full_1");
@@ -598,6 +601,9 @@ START_SECTION(exportToParquet / importFromParquet - full round-trip)
   // --- Verify experiment type ---
   TEST_EQUAL(imported.getExperimentType(), "label-free")
 
+  // --- Verify ConsensusMap-level UniqueId ---
+  TEST_EQUAL(imported.getUniqueId(), 55555)
+
   // --- Verify features ---
   TEST_EQUAL(imported.size(), 2)
 
@@ -650,7 +656,7 @@ END_SECTION
 // ConsensusMap metadata round-trip tests
 /////////////////////////////////////////////////////////////
 
-START_SECTION(exportToParquet / importFromParquet - metadata round-trip (DocumentIdentifier + DataProcessing + ColumnHeaders))
+START_SECTION(exportToParquet / importFromParquet - metadata round-trip (DocumentIdentifier + DataProcessing + ColumnHeaders + UniqueId + MetaValues))
 {
   ConsensusMap cmap;
 
@@ -658,12 +664,22 @@ START_SECTION(exportToParquet / importFromParquet - metadata round-trip (Documen
   cmap.setIdentifier("test_cmap_lsid_456");
   cmap.setLoadedFilePath("/data/experiments/test_run.consensusXML");
 
-  // --- Set column headers ---
+  // --- Set ConsensusMap-level UniqueId ---
+  cmap.setUniqueId(77777);
+
+  // --- Set ConsensusMap-level MetaValues ---
+  cmap.setMetaValue("analysis_type", String("differential"));
+  cmap.setMetaValue("num_runs", 5);
+  cmap.setMetaValue("threshold", 0.01);
+
+  // --- Set column headers with metavalues ---
   ConsensusMap::ColumnHeader ch0;
   ch0.filename = "run_A.mzML";
   ch0.label = "sample_A";
   ch0.size = 500;
   ch0.unique_id = 1111;
+  ch0.setMetaValue("injection_order", 1);
+  ch0.setMetaValue("sample_group", String("control"));
   cmap.getColumnHeaders()[0] = ch0;
 
   ConsensusMap::ColumnHeader ch1;
@@ -671,6 +687,8 @@ START_SECTION(exportToParquet / importFromParquet - metadata round-trip (Documen
   ch1.label = "sample_B";
   ch1.size = 600;
   ch1.unique_id = 2222;
+  ch1.setMetaValue("injection_order", 2);
+  ch1.setMetaValue("sample_group", String("treatment"));
   cmap.getColumnHeaders()[1] = ch1;
 
   ConsensusMap::ColumnHeader ch2;
@@ -678,6 +696,7 @@ START_SECTION(exportToParquet / importFromParquet - metadata round-trip (Documen
   ch2.label = "sample_C";
   ch2.size = 700;
   ch2.unique_id = 3333;
+  // ch2 intentionally has no metavalues
   cmap.getColumnHeaders()[2] = ch2;
 
   cmap.setExperimentType("labeled_MS1");
@@ -730,6 +749,14 @@ START_SECTION(exportToParquet / importFromParquet - metadata round-trip (Documen
   TEST_EQUAL(imported.getIdentifier(), "test_cmap_lsid_456")
   TEST_EQUAL(imported.getLoadedFilePath(), "/data/experiments/test_run.consensusXML")
 
+  // --- Verify ConsensusMap-level UniqueId ---
+  TEST_EQUAL(imported.getUniqueId(), 77777)
+
+  // --- Verify ConsensusMap-level MetaValues ---
+  TEST_EQUAL(String(imported.getMetaValue("analysis_type")), "differential")
+  TEST_EQUAL(int(imported.getMetaValue("num_runs")), 5)
+  TEST_REAL_SIMILAR(double(imported.getMetaValue("threshold")), 0.01)
+
   // --- Verify experiment type ---
   TEST_EQUAL(imported.getExperimentType(), "labeled_MS1")
 
@@ -743,6 +770,12 @@ START_SECTION(exportToParquet / importFromParquet - metadata round-trip (Documen
   TEST_EQUAL(imported.getColumnHeaders().at(1).label, "sample_B")
   TEST_EQUAL(imported.getColumnHeaders().at(2).filename, "run_C.mzML")
   TEST_EQUAL(imported.getColumnHeaders().at(2).label, "sample_C")
+
+  // --- Verify column header metavalues ---
+  TEST_EQUAL(int(imported.getColumnHeaders().at(0).getMetaValue("injection_order")), 1)
+  TEST_EQUAL(String(imported.getColumnHeaders().at(0).getMetaValue("sample_group")), "control")
+  TEST_EQUAL(int(imported.getColumnHeaders().at(1).getMetaValue("injection_order")), 2)
+  TEST_EQUAL(String(imported.getColumnHeaders().at(1).getMetaValue("sample_group")), "treatment")
 
   // --- Verify DataProcessing ---
   TEST_EQUAL(imported.getDataProcessing().size(), 2)

@@ -25,6 +25,7 @@
 #include <parquet/arrow/reader.h>
 #include <parquet/properties.h>
 
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -61,6 +62,9 @@ namespace // anonymous
         case DataValue::INT_VALUE: (void)type_b->Append("int"); break;
         case DataValue::DOUBLE_VALUE: (void)type_b->Append("double"); break;
         case DataValue::STRING_VALUE: (void)type_b->Append("string"); break;
+        case DataValue::INT_LIST: (void)type_b->Append("int_list"); break;
+        case DataValue::DOUBLE_LIST: (void)type_b->Append("double_list"); break;
+        case DataValue::STRING_LIST: (void)type_b->Append("string_list"); break;
         default: (void)type_b->Append("string"); break;
       }
     }
@@ -201,6 +205,9 @@ namespace // anonymous
           case DataValue::INT_VALUE: type_str = "int"; break;
           case DataValue::DOUBLE_VALUE: type_str = "double"; break;
           case DataValue::STRING_VALUE: type_str = "string"; break;
+          case DataValue::INT_LIST: type_str = "int_list"; break;
+          case DataValue::DOUBLE_LIST: type_str = "double_list"; break;
+          case DataValue::STRING_LIST: type_str = "string_list"; break;
           default: type_str = "string"; break;
         }
         json += "{\"name\":\"" + escapeJsonString_(std::string(key))
@@ -360,6 +367,38 @@ namespace // anonymous
                   try { dp.setMetaValue(mv_name, DataValue(std::stod(mv_value))); }
                   catch (...) { dp.setMetaValue(mv_name, DataValue(mv_value)); }
                 }
+                else if (mv_type == "int_list")
+                {
+                  try
+                  {
+                    String s(mv_value);
+                    if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+                    dp.setMetaValue(mv_name, DataValue(ListUtils::create<Int>(s)));
+                  }
+                  catch (...) { dp.setMetaValue(mv_name, DataValue(mv_value)); }
+                }
+                else if (mv_type == "double_list")
+                {
+                  try
+                  {
+                    String s(mv_value);
+                    if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+                    dp.setMetaValue(mv_name, DataValue(ListUtils::create<double>(s)));
+                  }
+                  catch (...) { dp.setMetaValue(mv_name, DataValue(mv_value)); }
+                }
+                else if (mv_type == "string_list")
+                {
+                  try
+                  {
+                    String s(mv_value);
+                    if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+                    auto sl = ListUtils::create<String>(s);
+                    for (auto& e : sl) { e = e.trim(); }
+                    dp.setMetaValue(mv_name, DataValue(sl));
+                  }
+                  catch (...) { dp.setMetaValue(mv_name, DataValue(mv_value)); }
+                }
                 else
                 {
                   dp.setMetaValue(mv_name, DataValue(mv_value));
@@ -417,6 +456,9 @@ namespace // anonymous
         case DataValue::INT_VALUE: type_str = "int"; break;
         case DataValue::DOUBLE_VALUE: type_str = "double"; break;
         case DataValue::STRING_VALUE: type_str = "string"; break;
+        case DataValue::INT_LIST: type_str = "int_list"; break;
+        case DataValue::DOUBLE_LIST: type_str = "double_list"; break;
+        case DataValue::STRING_LIST: type_str = "string_list"; break;
         default: type_str = "string"; break;
       }
       json += "{\"name\":\"" + escapeJsonString_(std::string(key))
@@ -474,6 +516,38 @@ namespace // anonymous
         else if (mv_type == "double" || mv_type == "float")
         {
           try { target.setMetaValue(mv_name, DataValue(std::stod(mv_value))); }
+          catch (...) { target.setMetaValue(mv_name, DataValue(mv_value)); }
+        }
+        else if (mv_type == "int_list")
+        {
+          try
+          {
+            String s(mv_value);
+            if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+            target.setMetaValue(mv_name, DataValue(ListUtils::create<Int>(s)));
+          }
+          catch (...) { target.setMetaValue(mv_name, DataValue(mv_value)); }
+        }
+        else if (mv_type == "double_list")
+        {
+          try
+          {
+            String s(mv_value);
+            if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+            target.setMetaValue(mv_name, DataValue(ListUtils::create<double>(s)));
+          }
+          catch (...) { target.setMetaValue(mv_name, DataValue(mv_value)); }
+        }
+        else if (mv_type == "string_list")
+        {
+          try
+          {
+            String s(mv_value);
+            if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+            auto sl = ListUtils::create<String>(s);
+            for (auto& e : sl) { e = e.trim(); }
+            target.setMetaValue(mv_name, DataValue(sl));
+          }
           catch (...) { target.setMetaValue(mv_name, DataValue(mv_value)); }
         }
         else
@@ -841,6 +915,38 @@ namespace // anonymous
       else if (type_str == "double" || type_str == "float")
       {
         try { target.setMetaValue(name, std::stod(value_str)); }
+        catch (...) { target.setMetaValue(name, value_str); }
+      }
+      else if (type_str == "int_list")
+      {
+        try
+        {
+          String s(value_str);
+          if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+          target.setMetaValue(name, DataValue(ListUtils::create<Int>(s)));
+        }
+        catch (...) { target.setMetaValue(name, value_str); }
+      }
+      else if (type_str == "double_list")
+      {
+        try
+        {
+          String s(value_str);
+          if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+          target.setMetaValue(name, DataValue(ListUtils::create<double>(s)));
+        }
+        catch (...) { target.setMetaValue(name, value_str); }
+      }
+      else if (type_str == "string_list")
+      {
+        try
+        {
+          String s(value_str);
+          if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+          auto sl = ListUtils::create<String>(s);
+          for (auto& e : sl) { e = e.trim(); }
+          target.setMetaValue(name, DataValue(sl));
+        }
         catch (...) { target.setMetaValue(name, value_str); }
       }
       else
@@ -1501,6 +1607,8 @@ bool ConsensusMapArrowIO::importFromParquet(
   const String& directory,
   ConsensusMap& cmap)
 {
+  cmap = ConsensusMap{};
+
   // 1. Import protein identification data
   std::vector<ProteinIdentification> prot_ids;
   if (!ProteinIdentificationArrowIO::importFromParquet(

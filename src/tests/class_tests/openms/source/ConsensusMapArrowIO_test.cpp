@@ -275,6 +275,9 @@ START_SECTION(importFeaturesFromArrow - feature round-trip with handles and meta
   cf1.setMetaValue("my_int", 42);
   cf1.setMetaValue("my_float", 3.14);
   cf1.setMetaValue("my_string", String("hello"));
+  cf1.setMetaValue("test_int_list", DataValue(IntList{1, 2, 3}));
+  cf1.setMetaValue("test_double_list", DataValue(DoubleList{1.5, 2.5}));
+  cf1.setMetaValue("test_string_list", DataValue(StringList{"a", "b", "c"}));
 
   FeatureHandle h0;
   h0.setMapIndex(0);
@@ -355,6 +358,14 @@ START_SECTION(importFeaturesFromArrow - feature round-trip with handles and meta
   TEST_EQUAL(int(out1.getMetaValue("my_int")), 42)
   TEST_REAL_SIMILAR(double(out1.getMetaValue("my_float")), 3.14)
   TEST_EQUAL(String(out1.getMetaValue("my_string")), "hello")
+
+  // Check list metavalue types are preserved
+  TEST_EQUAL(out1.getMetaValue("test_int_list").valueType(), DataValue::INT_LIST)
+  TEST_EQUAL(out1.getMetaValue("test_int_list") == DataValue(IntList{1, 2, 3}), true)
+  TEST_EQUAL(out1.getMetaValue("test_double_list").valueType(), DataValue::DOUBLE_LIST)
+  TEST_EQUAL(out1.getMetaValue("test_double_list") == DataValue(DoubleList{1.5, 2.5}), true)
+  TEST_EQUAL(out1.getMetaValue("test_string_list").valueType(), DataValue::STRING_LIST)
+  TEST_EQUAL(out1.getMetaValue("test_string_list") == DataValue(StringList{"a", "b", "c"}), true)
 
   // Verify feature 2
   const auto& out2 = cmap_out[1];

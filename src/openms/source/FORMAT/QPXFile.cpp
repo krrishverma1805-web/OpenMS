@@ -533,6 +533,9 @@ std::shared_ptr<arrow::Table> QPXFile::exportToArrow(
             case DataValue::INT_VALUE: (void)pmv_type_b->Append("int"); break;
             case DataValue::DOUBLE_VALUE: (void)pmv_type_b->Append("double"); break;
             case DataValue::STRING_VALUE: (void)pmv_type_b->Append("string"); break;
+            case DataValue::INT_LIST: (void)pmv_type_b->Append("int_list"); break;
+            case DataValue::DOUBLE_LIST: (void)pmv_type_b->Append("double_list"); break;
+            case DataValue::STRING_LIST: (void)pmv_type_b->Append("string_list"); break;
             default: (void)pmv_type_b->Append("string"); break;
           }
         }
@@ -557,6 +560,9 @@ std::shared_ptr<arrow::Table> QPXFile::exportToArrow(
             case DataValue::INT_VALUE: (void)smv_type_b->Append("int"); break;
             case DataValue::DOUBLE_VALUE: (void)smv_type_b->Append("double"); break;
             case DataValue::STRING_VALUE: (void)smv_type_b->Append("string"); break;
+            case DataValue::INT_LIST: (void)smv_type_b->Append("int_list"); break;
+            case DataValue::DOUBLE_LIST: (void)smv_type_b->Append("double_list"); break;
+            case DataValue::STRING_LIST: (void)smv_type_b->Append("string_list"); break;
             default: (void)smv_type_b->Append("string"); break;
           }
         }

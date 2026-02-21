@@ -66,6 +66,9 @@ namespace // anonymous
         case DataValue::INT_VALUE: (void)type_b->Append("int"); break;
         case DataValue::DOUBLE_VALUE: (void)type_b->Append("double"); break;
         case DataValue::STRING_VALUE: (void)type_b->Append("string"); break;
+        case DataValue::INT_LIST: (void)type_b->Append("int_list"); break;
+        case DataValue::DOUBLE_LIST: (void)type_b->Append("double_list"); break;
+        case DataValue::STRING_LIST: (void)type_b->Append("string_list"); break;
         default: (void)type_b->Append("string"); break;
       }
     }
@@ -337,6 +340,38 @@ namespace // anonymous
       else if (type_str == "double" || type_str == "float")
       {
         try { target.setMetaValue(name, std::stod(value_str)); }
+        catch (...) { target.setMetaValue(name, value_str); }
+      }
+      else if (type_str == "int_list")
+      {
+        try
+        {
+          String s(value_str);
+          if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+          target.setMetaValue(name, DataValue(ListUtils::create<Int>(s)));
+        }
+        catch (...) { target.setMetaValue(name, value_str); }
+      }
+      else if (type_str == "double_list")
+      {
+        try
+        {
+          String s(value_str);
+          if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+          target.setMetaValue(name, DataValue(ListUtils::create<double>(s)));
+        }
+        catch (...) { target.setMetaValue(name, value_str); }
+      }
+      else if (type_str == "string_list")
+      {
+        try
+        {
+          String s(value_str);
+          if (s.hasPrefix("[") && s.hasSuffix("]")) { s = s.substr(1, s.size() - 2); }
+          auto sl = ListUtils::create<String>(s);
+          for (auto& e : sl) { e = e.trim(); }
+          target.setMetaValue(name, DataValue(sl));
+        }
         catch (...) { target.setMetaValue(name, value_str); }
       }
       else

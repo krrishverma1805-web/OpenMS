@@ -1249,6 +1249,9 @@ START_SECTION(metavalue type preservation round trip)
   hit.setMetaValue("my_int", 42);
   hit.setMetaValue("my_float", 3.14);
   hit.setMetaValue("my_string", "hello_world");
+  hit.setMetaValue("test_int_list", DataValue(IntList{1, 2, 3}));
+  hit.setMetaValue("test_double_list", DataValue(DoubleList{1.5, 2.5}));
+  hit.setMetaValue("test_string_list", DataValue(StringList{"a", "b", "c"}));
   prot_id.insertHit(hit);
   orig_ids.push_back(prot_id);
 
@@ -1263,6 +1266,14 @@ START_SECTION(metavalue type preservation round trip)
   TEST_EQUAL(int(imp_hit.getMetaValue("my_int")), 42)
   TEST_REAL_SIMILAR(double(imp_hit.getMetaValue("my_float")), 3.14)
   TEST_EQUAL(String(imp_hit.getMetaValue("my_string")), "hello_world")
+
+  // Check list metavalue types are preserved
+  TEST_EQUAL(imp_hit.getMetaValue("test_int_list").valueType(), DataValue::INT_LIST)
+  TEST_EQUAL(imp_hit.getMetaValue("test_int_list") == DataValue(IntList{1, 2, 3}), true)
+  TEST_EQUAL(imp_hit.getMetaValue("test_double_list").valueType(), DataValue::DOUBLE_LIST)
+  TEST_EQUAL(imp_hit.getMetaValue("test_double_list") == DataValue(DoubleList{1.5, 2.5}), true)
+  TEST_EQUAL(imp_hit.getMetaValue("test_string_list").valueType(), DataValue::STRING_LIST)
+  TEST_EQUAL(imp_hit.getMetaValue("test_string_list") == DataValue(StringList{"a", "b", "c"}), true)
 }
 END_SECTION
 

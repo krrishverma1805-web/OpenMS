@@ -1022,7 +1022,14 @@ std::shared_ptr<arrow::Table> ProteinIdentificationArrowIO::exportSearchParamsTo
 #else
         int64_t epoch = static_cast<int64_t>(timegm(&tm));
 #endif
-        (void)date_builder.Append(epoch);
+        if (epoch < 0)
+        {
+          (void)date_builder.AppendNull(); // invalid date (e.g. default-constructed DateTime)
+        }
+        else
+        {
+          (void)date_builder.Append(epoch);
+        }
       }
     }
 
@@ -1356,21 +1363,27 @@ bool ProteinIdentificationArrowIO::importSearchParamsFromArrow(
     {
       auto ts_arr = std::static_pointer_cast<arrow::TimestampArray>(col_date);
       int64_t epoch_secs = ts_arr->Value(row);
-      time_t t = static_cast<time_t>(epoch_secs);
-      std::tm tm;
+      if (epoch_secs >= 0) // negative epochs are invalid on Windows
+      {
+        time_t t = static_cast<time_t>(epoch_secs);
+        std::tm tm{};
 #ifdef _WIN32
-      gmtime_s(&tm, &t);
+        errno_t err = gmtime_s(&tm, &t);
+        if (err == 0)
 #else
-      gmtime_r(&t, &tm);
+        if (gmtime_r(&t, &tm) != nullptr)
 #endif
-      DateTime dt;
-      dt.set(static_cast<UInt>(tm.tm_mon + 1),
-             static_cast<UInt>(tm.tm_mday),
-             static_cast<UInt>(tm.tm_year + 1900),
-             static_cast<UInt>(tm.tm_hour),
-             static_cast<UInt>(tm.tm_min),
-             static_cast<UInt>(tm.tm_sec));
-      prot_id.setDateTime(dt);
+        {
+          DateTime dt;
+          dt.set(static_cast<UInt>(tm.tm_mon + 1),
+                 static_cast<UInt>(tm.tm_mday),
+                 static_cast<UInt>(tm.tm_year + 1900),
+                 static_cast<UInt>(tm.tm_hour),
+                 static_cast<UInt>(tm.tm_min),
+                 static_cast<UInt>(tm.tm_sec));
+          prot_id.setDateTime(dt);
+        }
+      }
     }
 
     // Primary MS run paths

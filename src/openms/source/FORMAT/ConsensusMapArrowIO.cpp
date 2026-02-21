@@ -1412,6 +1412,9 @@ bool ConsensusMapArrowIO::importPSMsFromArrow(
   auto col_spectrum_metavalues = getColumn_(tbl, "spectrum_metavalues", /*required=*/false);
   auto col_predicted_rt = getColumn_(tbl, "predicted_rt", /*required=*/false);
   auto col_ion_mobility = getColumn_(tbl, "ion_mobility", /*required=*/false);
+  auto col_hsb = getColumn_(tbl, "higher_score_better", /*required=*/false);
+  auto col_scan = getColumn_(tbl, "scan", /*required=*/false);
+  auto col_ref_file = getColumn_(tbl, "reference_file_name", /*required=*/false);
 
   if (!col_feature_id || !col_p_id || !col_charge || !col_score || !col_score_type)
   {
@@ -1448,17 +1451,32 @@ bool ConsensusMapArrowIO::importPSMsFromArrow(
 
       PeptideIdentification& pid = group.pep_id;
       pid.setScoreType(getStringValue_(col_score_type, row));
-      pid.setHigherScoreBetter(true);
-
+      // Run identifier (links to ProteinIdentification)
       if (col_run_id && !isNull_(col_run_id, row))
       {
-        String run_id = getStringValue_(col_run_id, row);
-        pid.setIdentifier(run_id);
-        auto hsb_it = higher_score_better_lookup.find(run_id);
+        pid.setIdentifier(getStringValue_(col_run_id, row));
+      }
+
+      // higher_score_better: prefer per-PSM column, fall back to ProteinIdentification lookup
+      if (col_hsb && !isNull_(col_hsb, row))
+      {
+        pid.setHigherScoreBetter(getBoolValue_(col_hsb, row, true));
+      }
+      else if (col_run_id && !isNull_(col_run_id, row))
+      {
+        auto hsb_it = higher_score_better_lookup.find(pid.getIdentifier());
         if (hsb_it != higher_score_better_lookup.end())
         {
           pid.setHigherScoreBetter(hsb_it->second);
         }
+        else
+        {
+          pid.setHigherScoreBetter(true);
+        }
+      }
+      else
+      {
+        pid.setHigherScoreBetter(true);
       }
 
       if (col_rt && !isNull_(col_rt, row))
@@ -1567,10 +1585,23 @@ bool ConsensusMapArrowIO::importPSMsFromArrow(
       hit.setMetaValue("ion_mobility", getDoubleValue_(col_ion_mobility, row));
     }
 
+    // scan -> PeptideHit metavalue
+    if (col_scan && !isNull_(col_scan, row))
+    {
+      hit.setMetaValue("scan", static_cast<int>(getInt32Value_(col_scan, row)));
+    }
+
+    // reference_file_name -> PeptideHit metavalue
+    if (col_ref_file && !isNull_(col_ref_file, row))
+    {
+      hit.setMetaValue("reference_file_name", getStringValue_(col_ref_file, row));
+    }
+
     if (col_psm_metavalues)
     {
       static const std::unordered_set<std::string> psm_excluded_mvs =
-        {"target_decoy", "predicted_RT", "predicted_rt", "ion_mobility", "IM"};
+        {"target_decoy", "predicted_RT", "predicted_rt", "ion_mobility", "IM",
+         "scan", "reference_file_name"};
       readMetaValues_(col_psm_metavalues, row, hit, psm_excluded_mvs);
     }
 

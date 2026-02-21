@@ -94,9 +94,9 @@ START_SECTION(static std::shared_ptr<arrow::Table> exportToArrow(...))
   // Verify number of rows (should equal number of peptide identifications, not hits)
   TEST_EQUAL(table->num_rows(), 3)
 
-  // Verify schema column names and count (24 columns in new QPX schema)
+  // Verify schema column names and count (25 columns in QPX schema)
   auto schema = table->schema();
-  TEST_EQUAL(table->num_columns(), 24)
+  TEST_EQUAL(table->num_columns(), 25)
 
   TEST_EQUAL(schema->field(0)->name(), "sequence")
   TEST_EQUAL(schema->field(1)->name(), "peptidoform")
@@ -117,11 +117,12 @@ START_SECTION(static std::shared_ptr<arrow::Table> exportToArrow(...))
   TEST_EQUAL(schema->field(16)->name(), "spectrum_reference")
   TEST_EQUAL(schema->field(17)->name(), "score")
   TEST_EQUAL(schema->field(18)->name(), "score_type")
-  TEST_EQUAL(schema->field(19)->name(), "rank")
-  TEST_EQUAL(schema->field(20)->name(), "peptide_identification_index")
-  TEST_EQUAL(schema->field(21)->name(), "psm_metavalues")
-  TEST_EQUAL(schema->field(22)->name(), "spectrum_metavalues")
-  TEST_EQUAL(schema->field(23)->name(), "run_identifier")
+  TEST_EQUAL(schema->field(19)->name(), "higher_score_better")
+  TEST_EQUAL(schema->field(20)->name(), "rank")
+  TEST_EQUAL(schema->field(21)->name(), "peptide_identification_index")
+  TEST_EQUAL(schema->field(22)->name(), "psm_metavalues")
+  TEST_EQUAL(schema->field(23)->name(), "spectrum_metavalues")
+  TEST_EQUAL(schema->field(24)->name(), "run_identifier")
 
   // Verify data types for key columns
   TEST_EQUAL(schema->field(4)->type()->id(), arrow::Type::DOUBLE) // PEP is float64
@@ -300,7 +301,7 @@ START_SECTION(static bool exportToParquet(...))
   TEST_EQUAL(read_status.ok(), true)
 
   TEST_EQUAL(table->num_rows(), 1)
-  TEST_EQUAL(table->num_columns(), 24)
+  TEST_EQUAL(table->num_columns(), 25)
 
   // Verify modifications column has structured data for modified peptide
   auto mod_col = table->GetColumnByName("modifications");

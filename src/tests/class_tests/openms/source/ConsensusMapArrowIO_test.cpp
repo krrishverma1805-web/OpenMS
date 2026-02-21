@@ -468,6 +468,94 @@ START_SECTION(importPSMsFromArrow - PSM round-trip)
 END_SECTION
 
 /////////////////////////////////////////////////////////////
+// PSM per-PSM higher_score_better + scan/reference_file_name round-trip
+/////////////////////////////////////////////////////////////
+
+START_SECTION(exportToParquet / importFromParquet - per-PSM higher_score_better independent from ProteinIdentification)
+{
+  ConsensusMap cmap;
+
+  // ProteinIdentification with higher_score_better=false (run-level)
+  ProteinIdentification prot_id;
+  prot_id.setIdentifier("run_hsb_test");
+  prot_id.setSearchEngine("Comet");
+  prot_id.setScoreType("expect");
+  prot_id.setHigherScoreBetter(false);
+  cmap.setProteinIdentifications({prot_id});
+
+  // ConsensusFeature with PeptideIdentification where higher_score_better=true (differs from run-level)
+  ConsensusFeature cf;
+  cf.setRT(100.0);
+  cf.setMZ(500.0);
+  cf.setIntensity(1000.0f);
+  cf.setCharge(2);
+  cf.setUniqueId(7001);
+
+  PeptideIdentification pep_id1;
+  pep_id1.setIdentifier("run_hsb_test");
+  pep_id1.setScoreType("xcorr");
+  pep_id1.setHigherScoreBetter(true); // different from run-level false
+  pep_id1.setRT(100.0);
+  pep_id1.setMZ(500.25);
+  pep_id1.setSpectrumReference("spectrum=99");
+
+  PeptideHit hit1;
+  hit1.setSequence(AASequence::fromString("PEPTIDER"));
+  hit1.setScore(2.5);
+  hit1.setCharge(2);
+  hit1.setRank(1);
+  hit1.setMetaValue("target_decoy", "target");
+  pep_id1.insertHit(hit1);
+  cf.setPeptideIdentifications({pep_id1});
+  cmap.push_back(cf);
+
+  // Unassigned PeptideIdentification with higher_score_better=false (same as run-level)
+  PeptideIdentification pep_id2;
+  pep_id2.setIdentifier("run_hsb_test");
+  pep_id2.setScoreType("expect");
+  pep_id2.setHigherScoreBetter(false);
+  pep_id2.setRT(200.0);
+  pep_id2.setMZ(600.0);
+
+  PeptideHit hit2;
+  hit2.setSequence(AASequence::fromString("ACDEFGHIK"));
+  hit2.setScore(0.05);
+  hit2.setCharge(3);
+  hit2.setRank(1);
+  hit2.setMetaValue("target_decoy", "target");
+  pep_id2.insertHit(hit2);
+  cmap.getUnassignedPeptideIdentifications().push_back(pep_id2);
+
+  // --- Export and import ---
+  String tmp_dir;
+  NEW_TMP_FILE(tmp_dir)
+  tmp_dir += ".cmd";
+
+  TEST_EQUAL(ConsensusMapArrowIO::exportToParquet(cmap, tmp_dir), true)
+
+  ConsensusMap imported;
+  TEST_EQUAL(ConsensusMapArrowIO::importFromParquet(tmp_dir, imported), true)
+
+  // Verify per-PSM higher_score_better: pep_id1 should be true (not run-level false)
+  TEST_EQUAL(imported[0].getPeptideIdentifications().size(), 1)
+  const PeptideIdentification& out_pid1 = imported[0].getPeptideIdentifications()[0];
+  TEST_EQUAL(out_pid1.isHigherScoreBetter(), true)  // per-PSM value, NOT run-level false
+  TEST_EQUAL(out_pid1.getScoreType(), "xcorr")
+
+  // Verify unassigned PSM: higher_score_better should be false
+  TEST_EQUAL(imported.getUnassignedPeptideIdentifications().size(), 1)
+  const PeptideIdentification& out_pid2 = imported.getUnassignedPeptideIdentifications()[0];
+  TEST_EQUAL(out_pid2.isHigherScoreBetter(), false)
+  TEST_EQUAL(out_pid2.getScoreType(), "expect")
+
+  // Verify scan survives round-trip via metavalue
+  const PeptideHit& out_hit1 = out_pid1.getHits()[0];
+  TEST_EQUAL(out_hit1.metaValueExists("scan"), true)
+  TEST_EQUAL(static_cast<int>(out_hit1.getMetaValue("scan")), 99)
+}
+END_SECTION
+
+/////////////////////////////////////////////////////////////
 // Full Parquet directory round-trip test
 /////////////////////////////////////////////////////////////
 

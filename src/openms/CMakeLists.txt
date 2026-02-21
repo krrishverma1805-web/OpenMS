@@ -145,7 +145,7 @@ endif()
 # NOTE: We intentionally do NOT hide libarrow.a or libparquet.a symbols because
 # the OpenMS public API exposes arrow::Table etc., and downstream consumers
 # (including test executables) need to resolve those symbols from libOpenMS.so.
-if(WITH_PARQUET AND ARROW_USE_STATIC AND NOT MSVC)
+if(WITH_PARQUET AND ARROW_USE_STATIC AND NOT MSVC AND NOT APPLE)
   target_link_options(OpenMS PRIVATE "LINKER:--exclude-libs,libarrow_bundled_dependencies.a")
 endif()
 

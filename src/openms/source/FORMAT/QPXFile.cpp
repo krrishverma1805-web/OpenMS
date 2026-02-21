@@ -58,10 +58,12 @@ std::shared_ptr<arrow::Table> QPXFile::exportToArrow(
 {
   // -- Simple column builders --
   arrow::StringBuilder sequence_builder, peptidoform_builder;
-  arrow::StringBuilder reference_file_builder, scan_builder, score_type_builder;
+  arrow::StringBuilder reference_file_builder, score_type_builder;
   arrow::StringBuilder spectrum_reference_builder, cv_params_builder;
   arrow::StringBuilder run_identifier_builder;
-  arrow::Int32Builder precursor_charge_builder, is_decoy_builder, rank_builder, p_id_builder;
+  arrow::Int32Builder precursor_charge_builder, rank_builder, p_id_builder;
+  arrow::BooleanBuilder is_decoy_builder;
+  arrow::Int32Builder scan_builder;
   arrow::DoubleBuilder pep_builder, calculated_mz_builder, observed_mz_builder;
   arrow::DoubleBuilder rt_builder, ion_mobility_builder, predicted_rt_builder, score_builder;
 
@@ -349,7 +351,7 @@ std::shared_ptr<arrow::Table> QPXFile::exportToArrow(
       if (hit.metaValueExists("target_decoy"))
       {
         std::string td = hit.getMetaValue("target_decoy").toString();
-        (void)is_decoy_builder.Append(td.substr(0, 5) == "decoy" ? 1 : 0);
+        (void)is_decoy_builder.Append(td.substr(0, 5) == "decoy");
       }
       else
       {
@@ -453,7 +455,7 @@ std::shared_ptr<arrow::Table> QPXFile::exportToArrow(
         Int scan_num = extractScan(spec_ref);
         if (scan_num >= 0)
         {
-          (void)scan_builder.Append(std::to_string(scan_num));
+          (void)scan_builder.Append(scan_num);
         }
         else
         {
@@ -529,9 +531,9 @@ std::shared_ptr<arrow::Table> QPXFile::exportToArrow(
           switch (val.valueType())
           {
             case DataValue::INT_VALUE: (void)pmv_type_b->Append("int"); break;
-            case DataValue::DOUBLE_VALUE: (void)pmv_type_b->Append("float"); break;
-            case DataValue::STRING_VALUE: (void)pmv_type_b->Append("str"); break;
-            default: (void)pmv_type_b->Append("str"); break;
+            case DataValue::DOUBLE_VALUE: (void)pmv_type_b->Append("double"); break;
+            case DataValue::STRING_VALUE: (void)pmv_type_b->Append("string"); break;
+            default: (void)pmv_type_b->Append("string"); break;
           }
         }
       }
@@ -553,9 +555,9 @@ std::shared_ptr<arrow::Table> QPXFile::exportToArrow(
           switch (val.valueType())
           {
             case DataValue::INT_VALUE: (void)smv_type_b->Append("int"); break;
-            case DataValue::DOUBLE_VALUE: (void)smv_type_b->Append("float"); break;
-            case DataValue::STRING_VALUE: (void)smv_type_b->Append("str"); break;
-            default: (void)smv_type_b->Append("str"); break;
+            case DataValue::DOUBLE_VALUE: (void)smv_type_b->Append("double"); break;
+            case DataValue::STRING_VALUE: (void)smv_type_b->Append("string"); break;
+            default: (void)smv_type_b->Append("string"); break;
           }
         }
       }
@@ -632,7 +634,7 @@ std::shared_ptr<arrow::Table> QPXFile::exportToArrow(
     arrow::field("modifications", modifications_builder.type()),
     arrow::field("precursor_charge", arrow::int32()),
     arrow::field("posterior_error_probability", arrow::float64()),
-    arrow::field("is_decoy", arrow::int32()),
+    arrow::field("is_decoy", arrow::boolean()),
     arrow::field("calculated_mz", arrow::float64()),
     arrow::field("observed_mz", arrow::float64()),
     arrow::field("additional_scores", additional_scores_builder.type()),
@@ -640,7 +642,7 @@ std::shared_ptr<arrow::Table> QPXFile::exportToArrow(
     arrow::field("predicted_rt", arrow::float64()),
     arrow::field("reference_file_name", arrow::utf8()),
     arrow::field("cv_params", arrow::utf8()),
-    arrow::field("scan", arrow::utf8()),
+    arrow::field("scan", arrow::int32()),
     arrow::field("rt", arrow::float64()),
     arrow::field("ion_mobility", arrow::float64()),
     // OpenMS-specific columns
@@ -648,7 +650,7 @@ std::shared_ptr<arrow::Table> QPXFile::exportToArrow(
     arrow::field("score", arrow::float64()),
     arrow::field("score_type", arrow::utf8()),
     arrow::field("rank", arrow::int32()),
-    arrow::field("P_ID", arrow::int32()),
+    arrow::field("peptide_identification_index", arrow::int32()),
     arrow::field("psm_metavalues", psm_metavalues_builder.type()),
     arrow::field("spectrum_metavalues", spectrum_metavalues_builder.type()),
     arrow::field("run_identifier", arrow::utf8()),

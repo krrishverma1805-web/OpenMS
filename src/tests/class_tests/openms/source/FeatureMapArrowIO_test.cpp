@@ -109,7 +109,7 @@ START_SECTION(exportFeaturesToArrow - single feature with convex hulls and metav
   auto col_charge = std::static_pointer_cast<arrow::Int32Array>(table->GetColumnByName("charge")->chunk(0));
   TEST_EQUAL(col_charge->Value(0), 2)
 
-  auto col_oq = std::static_pointer_cast<arrow::FloatArray>(table->GetColumnByName("overall_quality")->chunk(0));
+  auto col_oq = std::static_pointer_cast<arrow::FloatArray>(table->GetColumnByName("quality")->chunk(0));
   TEST_REAL_SIMILAR(col_oq->Value(0), 0.95f)
 
   auto col_qrt = std::static_pointer_cast<arrow::FloatArray>(table->GetColumnByName("quality_rt")->chunk(0));
@@ -390,8 +390,8 @@ START_SECTION(exportPSMsToArrow - empty FeatureMap)
   auto table = FeatureMapArrowIO::exportPSMsToArrow(fm);
   TEST_NOT_EQUAL(table, nullptr)
   TEST_EQUAL(table->num_rows(), 0)
-  // Should have feature_id column + all QPX PSM columns
-  auto feature_id_col = table->GetColumnByName("feature_id");
+  // Should have feature_unique_id column + all QPX PSM columns
+  auto feature_id_col = table->GetColumnByName("feature_unique_id");
   TEST_NOT_EQUAL(feature_id_col, nullptr)
 }
 END_SECTION
@@ -449,16 +449,16 @@ START_SECTION(exportPSMsToArrow - feature and unassigned PSMs)
   TEST_NOT_EQUAL(table, nullptr)
   TEST_EQUAL(table->num_rows(), 2)
 
-  // Verify feature_id column
-  auto feature_id_chunked = table->GetColumnByName("feature_id");
+  // Verify feature_unique_id column
+  auto feature_id_chunked = table->GetColumnByName("feature_unique_id");
   TEST_NOT_EQUAL(feature_id_chunked, nullptr)
   auto feature_id_arr = std::static_pointer_cast<arrow::Int64Array>(feature_id_chunked->chunk(0));
 
-  // Row 0: feature PSM -> feature_id = 1000
+  // Row 0: feature PSM -> feature_unique_id = 1000
   TEST_EQUAL(feature_id_arr->IsNull(0), false)
   TEST_EQUAL(feature_id_arr->Value(0), 1000)
 
-  // Row 1: unassigned PSM -> feature_id = null
+  // Row 1: unassigned PSM -> feature_unique_id = null
   TEST_EQUAL(feature_id_arr->IsNull(1), true)
 
   // Verify sequence column

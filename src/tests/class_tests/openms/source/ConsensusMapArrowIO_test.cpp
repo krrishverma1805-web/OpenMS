@@ -231,16 +231,16 @@ START_SECTION(exportPSMsToArrow - feature and unassigned PSMs)
   TEST_NOT_EQUAL(table, nullptr)
   TEST_EQUAL(table->num_rows(), 2)
 
-  // Verify consensus_feature_id column
-  auto cf_id_chunked = table->GetColumnByName("consensus_feature_id");
+  // Verify consensus_feature_unique_id column
+  auto cf_id_chunked = table->GetColumnByName("consensus_feature_unique_id");
   TEST_NOT_EQUAL(cf_id_chunked, nullptr)
   auto cf_id_arr = std::static_pointer_cast<arrow::Int64Array>(cf_id_chunked->chunk(0));
 
-  // Row 0: feature PSM -> consensus_feature_id = 1000
+  // Row 0: feature PSM -> consensus_feature_unique_id = 1000
   TEST_EQUAL(cf_id_arr->IsNull(0), false)
   TEST_EQUAL(cf_id_arr->Value(0), 1000)
 
-  // Row 1: unassigned PSM -> consensus_feature_id = null
+  // Row 1: unassigned PSM -> consensus_feature_unique_id = null
   TEST_EQUAL(cf_id_arr->IsNull(1), true)
 
   // Verify sequence column

@@ -59,9 +59,9 @@ namespace // anonymous
       switch (val.valueType())
       {
         case DataValue::INT_VALUE: (void)type_b->Append("int"); break;
-        case DataValue::DOUBLE_VALUE: (void)type_b->Append("float"); break;
-        case DataValue::STRING_VALUE: (void)type_b->Append("str"); break;
-        default: (void)type_b->Append("str"); break;
+        case DataValue::DOUBLE_VALUE: (void)type_b->Append("double"); break;
+        case DataValue::STRING_VALUE: (void)type_b->Append("string"); break;
+        default: (void)type_b->Append("string"); break;
       }
     }
   }
@@ -199,9 +199,9 @@ namespace // anonymous
         switch (val.valueType())
         {
           case DataValue::INT_VALUE: type_str = "int"; break;
-          case DataValue::DOUBLE_VALUE: type_str = "float"; break;
-          case DataValue::STRING_VALUE: type_str = "str"; break;
-          default: type_str = "str"; break;
+          case DataValue::DOUBLE_VALUE: type_str = "double"; break;
+          case DataValue::STRING_VALUE: type_str = "string"; break;
+          default: type_str = "string"; break;
         }
         json += "{\"name\":\"" + escapeJsonString_(std::string(key))
               + "\",\"value\":\"" + escapeJsonString_(val.toString())
@@ -355,7 +355,7 @@ namespace // anonymous
                   try { dp.setMetaValue(mv_name, DataValue(std::stoi(mv_value))); }
                   catch (...) { dp.setMetaValue(mv_name, DataValue(mv_value)); }
                 }
-                else if (mv_type == "float")
+                else if (mv_type == "double" || mv_type == "float")
                 {
                   try { dp.setMetaValue(mv_name, DataValue(std::stod(mv_value))); }
                   catch (...) { dp.setMetaValue(mv_name, DataValue(mv_value)); }
@@ -415,9 +415,9 @@ namespace // anonymous
       switch (val.valueType())
       {
         case DataValue::INT_VALUE: type_str = "int"; break;
-        case DataValue::DOUBLE_VALUE: type_str = "float"; break;
-        case DataValue::STRING_VALUE: type_str = "str"; break;
-        default: type_str = "str"; break;
+        case DataValue::DOUBLE_VALUE: type_str = "double"; break;
+        case DataValue::STRING_VALUE: type_str = "string"; break;
+        default: type_str = "string"; break;
       }
       json += "{\"name\":\"" + escapeJsonString_(std::string(key))
             + "\",\"value\":\"" + escapeJsonString_(val.toString())
@@ -471,7 +471,7 @@ namespace // anonymous
           try { target.setMetaValue(mv_name, DataValue(std::stoi(mv_value))); }
           catch (...) { target.setMetaValue(mv_name, DataValue(mv_value)); }
         }
-        else if (mv_type == "float")
+        else if (mv_type == "double" || mv_type == "float")
         {
           try { target.setMetaValue(mv_name, DataValue(std::stod(mv_value))); }
           catch (...) { target.setMetaValue(mv_name, DataValue(mv_value)); }
@@ -798,6 +798,12 @@ namespace // anonymous
     return std::static_pointer_cast<arrow::Int32Array>(array)->Value(row);
   }
 
+  bool getBoolValue_(const std::shared_ptr<arrow::Array>& array, int64_t row, bool default_val = false)
+  {
+    if (!array || array->IsNull(row)) return default_val;
+    return std::static_pointer_cast<arrow::BooleanArray>(array)->Value(row);
+  }
+
   bool isNull_(const std::shared_ptr<arrow::Array>& array, int64_t row)
   {
     return !array || array->IsNull(row);
@@ -832,7 +838,7 @@ namespace // anonymous
         try { target.setMetaValue(name, static_cast<int>(std::stol(value_str))); }
         catch (...) { target.setMetaValue(name, value_str); }
       }
-      else if (type_str == "float")
+      else if (type_str == "double" || type_str == "float")
       {
         try { target.setMetaValue(name, std::stod(value_str)); }
         catch (...) { target.setMetaValue(name, value_str); }
@@ -963,6 +969,8 @@ std::shared_ptr<arrow::Table> ConsensusMapArrowIO::exportFeaturesToArrow(
     (void)charge_builder.Append(static_cast<int32_t>(cf.getCharge()));
     (void)quality_builder.Append(cf.getQuality());
 
+    // Width: 0.0 is the unset default, stored as null to distinguish from explicitly set values.
+    // On import, null is left as default (0.0), so round-trip is numerically correct.
     float w = cf.getWidth();
     if (w == 0.0f)
     {
@@ -1035,7 +1043,7 @@ std::shared_ptr<arrow::Table> ConsensusMapArrowIO::exportFeaturesToArrow(
 std::shared_ptr<arrow::Table> ConsensusMapArrowIO::exportPSMsToArrow(
   const ConsensusMap& cmap)
 {
-  // Collect all PeptideIdentifications with their associated consensus_feature_ids.
+  // Collect all PeptideIdentifications with their associated consensus_feature_unique_ids.
   PeptideIdentificationList all_pep_ids;
   std::vector<std::pair<int64_t, bool>> feature_ids_per_pep_id; // (id, is_null)
 
@@ -1049,7 +1057,7 @@ std::shared_ptr<arrow::Table> ConsensusMapArrowIO::exportPSMsToArrow(
     }
   }
 
-  // Unassigned peptide identifications get consensus_feature_id = null
+  // Unassigned peptide identifications get consensus_feature_unique_id = null
   for (const auto& pep_id : cmap.getUnassignedPeptideIdentifications())
   {
     all_pep_ids.push_back(pep_id);
@@ -1061,7 +1069,7 @@ std::shared_ptr<arrow::Table> ConsensusMapArrowIO::exportPSMsToArrow(
     cmap.getProteinIdentifications(), all_pep_ids, true);
   if (!base_table) { return nullptr; }
 
-  // Build the consensus_feature_id column (one value per PeptideHit)
+  // Build the consensus_feature_unique_id column (one value per PeptideHit)
   arrow::Int64Builder feature_id_builder;
 
   for (size_t i = 0; i < all_pep_ids.size(); ++i)
@@ -1094,13 +1102,13 @@ std::shared_ptr<arrow::Table> ConsensusMapArrowIO::exportPSMsToArrow(
 
   if (feature_id_array->length() != base_table->num_rows())
   {
-    OPENMS_LOG_ERROR << "ConsensusMapArrowIO: consensus_feature_id column length (" << feature_id_array->length()
+    OPENMS_LOG_ERROR << "ConsensusMapArrowIO: consensus_feature_unique_id column length (" << feature_id_array->length()
                      << ") does not match table row count (" << base_table->num_rows() << ")" << std::endl;
     return nullptr;
   }
 
   auto chunked_feature_id = std::make_shared<arrow::ChunkedArray>(feature_id_array);
-  auto result = base_table->AddColumn(0, arrow::field("consensus_feature_id", arrow::int64()), chunked_feature_id);
+  auto result = base_table->AddColumn(0, arrow::field("consensus_feature_unique_id", arrow::int64()), chunked_feature_id);
   if (!result.ok())
   {
     OPENMS_LOG_ERROR << "ConsensusMapArrowIO: AddColumn failed: " << result.status().ToString() << std::endl;
@@ -1234,6 +1242,7 @@ bool ConsensusMapArrowIO::importFeaturesFromArrow(
     cf.setCharge(static_cast<Int>(getInt32Value_(col_charge, i)));
     cf.setQuality(getFloatValue_(col_quality, i));
 
+    // Width: null means unset (default 0.0), so we only call setWidth for non-null values.
     if (col_width && !isNull_(col_width, i))
     {
       cf.setWidth(getFloatValue_(col_width, i));
@@ -1278,8 +1287,8 @@ bool ConsensusMapArrowIO::importPSMsFromArrow(
   }
 
   // Read columns
-  auto col_feature_id = getColumn_(tbl, "consensus_feature_id");
-  auto col_p_id = getColumn_(tbl, "P_ID");
+  auto col_feature_id = getColumn_(tbl, "consensus_feature_unique_id");
+  auto col_p_id = getColumn_(tbl, "peptide_identification_index");
   auto col_peptidoform = getColumn_(tbl, "peptidoform", /*required=*/false);
   auto col_sequence = getColumn_(tbl, "sequence", /*required=*/false);
   auto col_charge = getColumn_(tbl, "precursor_charge");
@@ -1407,8 +1416,8 @@ bool ConsensusMapArrowIO::importPSMsFromArrow(
 
     if (col_is_decoy && !isNull_(col_is_decoy, row))
     {
-      int32_t is_decoy = getInt32Value_(col_is_decoy, row, 0);
-      hit.setMetaValue("target_decoy", is_decoy == 1 ? "decoy" : "target");
+      bool is_decoy = getBoolValue_(col_is_decoy, row, false);
+      hit.setMetaValue("target_decoy", is_decoy ? "decoy" : "target");
     }
 
     if (col_protein_accs && !isNull_(col_protein_accs, row))

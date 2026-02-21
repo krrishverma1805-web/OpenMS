@@ -59,9 +59,9 @@ namespace // anonymous
       switch (val.valueType())
       {
         case DataValue::INT_VALUE: (void)type_b->Append("int"); break;
-        case DataValue::DOUBLE_VALUE: (void)type_b->Append("float"); break;
-        case DataValue::STRING_VALUE: (void)type_b->Append("str"); break;
-        default: (void)type_b->Append("str"); break;
+        case DataValue::DOUBLE_VALUE: (void)type_b->Append("double"); break;
+        case DataValue::STRING_VALUE: (void)type_b->Append("string"); break;
+        default: (void)type_b->Append("string"); break;
       }
     }
   }
@@ -206,9 +206,9 @@ namespace // anonymous
         switch (val.valueType())
         {
           case DataValue::INT_VALUE: type_str = "int"; break;
-          case DataValue::DOUBLE_VALUE: type_str = "float"; break;
-          case DataValue::STRING_VALUE: type_str = "str"; break;
-          default: type_str = "str"; break;
+          case DataValue::DOUBLE_VALUE: type_str = "double"; break;
+          case DataValue::STRING_VALUE: type_str = "string"; break;
+          default: type_str = "string"; break;
         }
         json += "{\"name\":\"" + escapeJsonString_(std::string(key))
               + "\",\"value\":\"" + escapeJsonString_(val.toString())
@@ -367,7 +367,7 @@ namespace // anonymous
                   try { dp.setMetaValue(mv_name, DataValue(std::stoi(mv_value))); }
                   catch (...) { dp.setMetaValue(mv_name, DataValue(mv_value)); }
                 }
-                else if (mv_type == "float")
+                else if (mv_type == "double" || mv_type == "float")
                 {
                   try { dp.setMetaValue(mv_name, DataValue(std::stod(mv_value))); }
                   catch (...) { dp.setMetaValue(mv_name, DataValue(mv_value)); }
@@ -648,6 +648,13 @@ namespace // anonymous
     return std::static_pointer_cast<arrow::Int32Array>(array)->Value(row);
   }
 
+  /// Get boolean value at a row, returning default_val if null.
+  bool getBoolValue_(const std::shared_ptr<arrow::Array>& array, int64_t row, bool default_val = false)
+  {
+    if (!array || array->IsNull(row)) return default_val;
+    return std::static_pointer_cast<arrow::BooleanArray>(array)->Value(row);
+  }
+
   /// Check if value at row is null.
   bool isNull_(const std::shared_ptr<arrow::Array>& array, int64_t row)
   {
@@ -684,7 +691,7 @@ namespace // anonymous
         try { target.setMetaValue(name, static_cast<int>(std::stol(value_str))); }
         catch (...) { target.setMetaValue(name, value_str); }
       }
-      else if (type_str == "float")
+      else if (type_str == "double" || type_str == "float")
       {
         try { target.setMetaValue(name, std::stod(value_str)); }
         catch (...) { target.setMetaValue(name, value_str); }
@@ -857,7 +864,7 @@ std::shared_ptr<arrow::Table> FeatureMapArrowIO::exportFeaturesToArrow(
     // === quality_mz (not nullable) ===
     (void)quality_mz_builder.Append(feature.getQuality(1));
 
-    // === width (nullable: null if 0) ===
+    // === width (nullable: null if 0.0, since 0.0 is the unset default; round-trip correct) ===
     float w = feature.getWidth();
     if (w == 0.0f)
     {
@@ -964,7 +971,7 @@ std::shared_ptr<arrow::Table> FeatureMapArrowIO::exportFeaturesToArrow(
     arrow::field("mz", arrow::float64(), /*nullable=*/false),
     arrow::field("intensity", arrow::float32(), /*nullable=*/false),
     arrow::field("charge", arrow::int32(), /*nullable=*/false),
-    arrow::field("overall_quality", arrow::float32(), /*nullable=*/false),
+    arrow::field("quality", arrow::float32(), /*nullable=*/false),
     arrow::field("quality_rt", arrow::float32(), /*nullable=*/false),
     arrow::field("quality_mz", arrow::float32(), /*nullable=*/false),
     arrow::field("width", arrow::float32(), /*nullable=*/true),
@@ -1075,7 +1082,7 @@ std::shared_ptr<arrow::Table> FeatureMapArrowIO::exportPSMsToArrow(
 
   // 4. Add feature_id as the first column in the table.
   auto chunked_feature_id = std::make_shared<arrow::ChunkedArray>(feature_id_array);
-  auto result = base_table->AddColumn(0, arrow::field("feature_id", arrow::int64()), chunked_feature_id);
+  auto result = base_table->AddColumn(0, arrow::field("feature_unique_id", arrow::int64()), chunked_feature_id);
   if (!result.ok())
   {
     OPENMS_LOG_ERROR << "FeatureMapArrowIO: AddColumn failed: " << result.status().ToString() << std::endl;
@@ -1186,7 +1193,7 @@ bool FeatureMapArrowIO::importFeaturesFromArrow(
   auto col_mz = getColumn_(tbl, "mz");
   auto col_intensity = getColumn_(tbl, "intensity");
   auto col_charge = getColumn_(tbl, "charge");
-  auto col_overall_quality = getColumn_(tbl, "overall_quality");
+  auto col_overall_quality = getColumn_(tbl, "quality");
   auto col_quality_rt = getColumn_(tbl, "quality_rt");
   auto col_quality_mz = getColumn_(tbl, "quality_mz");
   auto col_width = getColumn_(tbl, "width");
@@ -1235,6 +1242,7 @@ bool FeatureMapArrowIO::importFeaturesFromArrow(
     f.setQuality(0, getFloatValue_(col_quality_rt, i));
     f.setQuality(1, getFloatValue_(col_quality_mz, i));
 
+    // width: null means unset (default 0.0); only set if non-null and non-zero
     float w = getFloatValue_(col_width, i, 0.0f);
     if (w != 0.0f)
     {
@@ -1344,8 +1352,8 @@ bool FeatureMapArrowIO::importPSMsFromArrow(
   }
 
   // Read columns
-  auto col_feature_id = getColumn_(tbl, "feature_id");
-  auto col_p_id = getColumn_(tbl, "P_ID");
+  auto col_feature_id = getColumn_(tbl, "feature_unique_id");
+  auto col_p_id = getColumn_(tbl, "peptide_identification_index");
   auto col_peptidoform = getColumn_(tbl, "peptidoform", /*required=*/false);
   auto col_sequence = getColumn_(tbl, "sequence", /*required=*/false);
   auto col_charge = getColumn_(tbl, "precursor_charge");
@@ -1496,8 +1504,8 @@ bool FeatureMapArrowIO::importPSMsFromArrow(
     // is_decoy -> target_decoy metavalue
     if (col_is_decoy && !isNull_(col_is_decoy, row))
     {
-      int32_t is_decoy = getInt32Value_(col_is_decoy, row, 0);
-      hit.setMetaValue("target_decoy", is_decoy == 1 ? "decoy" : "target");
+      bool is_decoy = getBoolValue_(col_is_decoy, row, false);
+      hit.setMetaValue("target_decoy", is_decoy ? "decoy" : "target");
     }
 
     // protein_accessions -> PeptideEvidence
@@ -1578,24 +1586,6 @@ bool FeatureMapArrowIO::importPSMsFromArrow(
         feature_map.getUnassignedPeptideIdentifications().push_back(std::move(group.pep_id));
       }
     }
-  }
-
-  // Add top-level features to the FeatureMap (preserving original order by row_index)
-  // First, collect top-level entries sorted by row_index
-  std::vector<size_t> top_level_indices;
-  for (size_t i = 0; i < entries.size(); ++i)
-  {
-    if (entries[i].parent_id == -1)
-    {
-      top_level_indices.push_back(i);
-    }
-  }
-  std::sort(top_level_indices.begin(), top_level_indices.end(),
-    [&](size_t a, size_t b) { return entries[a].row_index < entries[b].row_index; });
-
-  for (size_t idx : top_level_indices)
-  {
-    feature_map.push_back(std::move(entries[idx].feature));
   }
 
   return true;

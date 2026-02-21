@@ -118,7 +118,7 @@ START_SECTION(static std::shared_ptr<arrow::Table> exportToArrow(...))
   TEST_EQUAL(schema->field(17)->name(), "score")
   TEST_EQUAL(schema->field(18)->name(), "score_type")
   TEST_EQUAL(schema->field(19)->name(), "rank")
-  TEST_EQUAL(schema->field(20)->name(), "P_ID")
+  TEST_EQUAL(schema->field(20)->name(), "peptide_identification_index")
   TEST_EQUAL(schema->field(21)->name(), "psm_metavalues")
   TEST_EQUAL(schema->field(22)->name(), "spectrum_metavalues")
   TEST_EQUAL(schema->field(23)->name(), "run_identifier")
@@ -148,10 +148,10 @@ START_SECTION(static std::shared_ptr<arrow::Table> exportToArrow(...))
 
   // Verify is_decoy nullable behavior
   auto decoy_col = table->GetColumnByName("is_decoy");
-  auto decoy_arr = std::static_pointer_cast<arrow::Int32Array>(decoy_col->chunk(0));
-  TEST_EQUAL(decoy_arr->Value(0), 0) // target
-  TEST_EQUAL(decoy_arr->Value(1), 1) // decoy
-  TEST_EQUAL(decoy_arr->Value(2), 0) // target
+  auto decoy_arr = std::static_pointer_cast<arrow::BooleanArray>(decoy_col->chunk(0));
+  TEST_EQUAL(decoy_arr->Value(0), false) // target
+  TEST_EQUAL(decoy_arr->Value(1), true) // decoy
+  TEST_EQUAL(decoy_arr->Value(2), false) // target
 
   // Verify rank is always present and 0-based
   auto rank_col = table->GetColumnByName("rank");
@@ -160,8 +160,8 @@ START_SECTION(static std::shared_ptr<arrow::Table> exportToArrow(...))
   TEST_EQUAL(rank_arr->Value(1), 0)
   TEST_EQUAL(rank_arr->Value(2), 0)
 
-  // Verify P_ID values
-  auto pid_col = table->GetColumnByName("P_ID");
+  // Verify peptide_identification_index values
+  auto pid_col = table->GetColumnByName("peptide_identification_index");
   auto pid_arr = std::static_pointer_cast<arrow::Int32Array>(pid_col->chunk(0));
   TEST_EQUAL(pid_arr->Value(0), 0)
   TEST_EQUAL(pid_arr->Value(1), 1)
@@ -169,10 +169,10 @@ START_SECTION(static std::shared_ptr<arrow::Table> exportToArrow(...))
 
   // Verify scan extraction from native ID
   auto scan_col = table->GetColumnByName("scan");
-  auto scan_arr = std::static_pointer_cast<arrow::StringArray>(scan_col->chunk(0));
-  TEST_EQUAL(scan_arr->GetString(0), "1000")
-  TEST_EQUAL(scan_arr->GetString(1), "1001")
-  TEST_EQUAL(scan_arr->GetString(2), "1002")
+  auto scan_arr = std::static_pointer_cast<arrow::Int32Array>(scan_col->chunk(0));
+  TEST_EQUAL(scan_arr->Value(0), 1000)
+  TEST_EQUAL(scan_arr->Value(1), 1001)
+  TEST_EQUAL(scan_arr->Value(2), 1002)
 
   // Verify spectrum_reference stores full native ID
   auto sr_col = table->GetColumnByName("spectrum_reference");
@@ -234,8 +234,8 @@ START_SECTION(static std::shared_ptr<arrow::Table> exportToArrow(...) with expor
   TEST_EQUAL(rank_arr->Value(1), 1)
   TEST_EQUAL(rank_arr->Value(2), 2)
 
-  // All rows should have the same P_ID (same parent identification)
-  auto pid_col = table->GetColumnByName("P_ID");
+  // All rows should have the same peptide_identification_index (same parent identification)
+  auto pid_col = table->GetColumnByName("peptide_identification_index");
   auto pid_arr = std::static_pointer_cast<arrow::Int32Array>(pid_col->chunk(0));
   TEST_EQUAL(pid_arr->Value(0), 0)
   TEST_EQUAL(pid_arr->Value(1), 0)

@@ -417,6 +417,7 @@ set(chemistry_executables_list
   IsoSpec_test
   IsotopeDistribution_test
   MassDecomposer_test
+  ModificationDataProvider_test
   ModificationDefinition_test
   ModificationDefinitionsSet_test
   ModificationsDB_test
@@ -433,6 +434,7 @@ set(chemistry_executables_list
   ResidueModification_test
   Residue_test
   RibonucleotideDB_test
+  RibonucleotideDataProvider_test
   Ribonucleotide_test
   SimpleTSGXLMS_test
   SpectrumAnnotator_test

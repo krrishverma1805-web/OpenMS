@@ -16,15 +16,18 @@ DigestionEnzyme.h
 DigestionEnzymeProtein.h
 DigestionEnzymeRNA.h
 DigestionEnzymeDB.h
+ModificationDataProvider.h
 ModificationDefinition.h
 ModificationDefinitionsSet.h
 ModifiedNASequenceGenerator.h
 ModifiedPeptideGenerator.h
 ModificationsDB.h
+ModomicsJSONDataProvider.h
 MzPAF.h
 MonosaccharideDB.h
 NASequence.h
 NucleicAcidSpectrumGenerator.h
+OBODataProvider.h
 ProForma.h
 ProFormaDataJson.h
 ProteaseDB.h
@@ -36,12 +39,15 @@ RNaseDB.h
 RNaseDigestion.h
 Ribonucleotide.h
 RibonucleotideDB.h
+RibonucleotideDataProvider.h
+RibonucleotideTSVDataProvider.h
 SequenceCoverage.h
 SimpleTSGXLMS.h
 SpectrumAnnotator.h
 Tagger.h
 TheoreticalSpectrumGenerator.h
 TheoreticalSpectrumGeneratorXLMS.h
+UnimodXMLDataProvider.h
 )
 
 ### add path to the filenames

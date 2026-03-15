@@ -1,0 +1,60 @@
+name: Test vcpkg-configuration.json baseline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate-vcpkg-baseline:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git $HOME/vcpkg
+          cd $HOME/vcpkg
+          ./bootstrap-vcpkg.sh
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+          echo "$HOME/vcpkg" >> $GITHUB_PATH
+
+      - name: Validate JSON syntax
+        run: |
+          echo "=== Validating vcpkg-configuration.json ==="
+          python3 -m json.tool vcpkg-configuration.json
+          echo ""
+          echo "=== Validating vcpkg.json ==="
+          python3 -m json.tool vcpkg.json > /dev/null
+          echo "Both JSON files are syntactically valid."
+
+      - name: Verify baseline commit is reachable
+        run: |
+          BASELINE=$(python3 -c "import json; print(json.load(open('vcpkg-configuration.json'))['default-registry']['baseline'])")
+          echo "Baseline commit: $BASELINE"
+          cd $VCPKG_ROOT
+          git fetch origin $BASELINE --depth=1
+          git log --oneline -1 $BASELINE
+          echo "Baseline commit is valid and reachable in microsoft/vcpkg."
+
+      - name: Test dependency resolution using baseline
+        run: |
+          mkdir -p /tmp/vcpkg-test
+          cp vcpkg-configuration.json /tmp/vcpkg-test/
+          echo '{"name":"baseline-test","version":"1.0.0","dependencies":["zlib"]}' > /tmp/vcpkg-test/vcpkg.json
+          cd /tmp/vcpkg-test
+          echo "=== Installing zlib using baseline configuration ==="
+          vcpkg install --triplet x64-linux 2>&1
+          echo ""
+          echo "SUCCESS: Dependency resolved and installed using the baseline configuration."
+
+      - name: Verify schema URL is accessible
+        run: |
+          SCHEMA_URL=$(python3 -c "import json; print(json.load(open('vcpkg-configuration.json'))['\$schema'])")
+          echo "Schema URL: $SCHEMA_URL"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$SCHEMA_URL")
+          echo "HTTP Status: $HTTP_CODE"
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Schema URL is accessible."
+          else
+            echo "ERROR: Schema URL returned $HTTP_CODE"
+            exit 1
+          fi
